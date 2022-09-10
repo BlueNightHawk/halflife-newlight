@@ -22,6 +22,26 @@
 #include "tri.h"
 extern IParticleMan* g_pParticleMan;
 
+#include "studio.h"
+#include "com_model.h"
+#include "studio_util.h"
+#include "r_studioint.h"
+
+#include "StudioModelRenderer.h"
+#include "GameStudioModelRenderer.h"
+#include "Exports.h"
+
+//
+// Override the StudioModelRender virtual member functions here to implement custom bone
+// setup, blending, etc.
+//
+
+// Global engine <-> studio model rendering code interface
+extern engine_studio_api_t IEngineStudio;
+
+// The renderer object, created on the stack.
+extern CGameStudioModelRenderer g_StudioRenderer;
+
 /*
 =================
 HUD_DrawNormalTriangles
@@ -32,6 +52,8 @@ Non-transparent triangles-- add them here
 void DLLEXPORT HUD_DrawNormalTriangles()
 {
 	//	RecClDrawNormalTriangles();
+	g_StudioRenderer.StudioDrawPlayerKick();
+
 
 	gHUD.m_Spectator.DrawOverview();
 }
@@ -47,7 +69,6 @@ Render any triangles with transparent rendermode needs here
 void DLLEXPORT HUD_DrawTransparentTriangles()
 {
 	//	RecClDrawTransparentTriangles();
-
 
 	if (g_pParticleMan)
 		g_pParticleMan->Update();

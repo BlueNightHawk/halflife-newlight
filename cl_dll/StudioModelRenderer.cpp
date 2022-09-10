@@ -21,6 +21,14 @@
 #include "StudioModelRenderer.h"
 #include "GameStudioModelRenderer.h"
 
+#include "event_api.h"
+#include "view.h"
+
+#include "PlatformHeaders.h"
+
+#include <gl/GL.h>
+#include <gl/GLU.h>
+
 extern cvar_t* tfc_newmodels;
 
 extern extra_player_info_t g_PlayerExtraInfo[MAX_PLAYERS_HUD + 1];
@@ -1103,6 +1111,51 @@ void CStudioModelRenderer::StudioMergeBones(model_t* m_pSubModel)
 	}
 }
 
+/*
+====================
+StudioDrawPlayerKick
+
+====================
+*/
+void CStudioModelRenderer::StudioDrawPlayerKick()
+{
+	cl_entity_t* view = nlutils::GetViewModel();
+	static bool bFirstdraw = true;
+	cl_entity_t *player = gEngfuncs.GetLocalPlayer();
+	if (!view || !player)
+		return;
+
+	static cl_entity_t kickmodel = *player;
+
+	if ((player->curstate.eflags & EFLAG_PLAYERKICK) == 0)
+	{
+		bFirstdraw = true;
+		return;
+	}
+
+	if (bFirstdraw)
+	{
+		kickmodel = *player;
+		kickmodel.curstate.animtime = m_clTime;
+		kickmodel.curstate.frame = 0;
+		kickmodel.curstate.sequence = 0;
+		bFirstdraw = false;
+
+		gEngfuncs.pEventAPI->EV_PlaySound(player->index, view->origin, CHAN_WEAPON, "zombie/claw_miss2.wav", 1, ATTN_NORM, 0, PITCH_NORM);
+
+		view::PunchAxis(0, 1.0f);
+		view::PunchAxis(0, 1.0f);
+	}
+
+	kickmodel.origin = nlutils::ViewParams.vieworg;
+	kickmodel.angles = kickmodel.curstate.angles = nlutils::VectorInvertPitch(nlutils::ViewParams.cl_viewangles);
+	kickmodel.model = IEngineStudio.Mod_ForName("models/v_kick.mdl", 1);
+
+	m_pCurrentEntity = &kickmodel;
+	glDepthRange(0.0, 0.4);
+	StudioDrawModel(STUDIO_RENDER);
+	glDepthRange(0.0, 1.0);
+}
 
 /*
 ====================
@@ -1115,7 +1168,6 @@ bool CStudioModelRenderer::StudioDrawModel(int flags)
 	alight_t lighting;
 	Vector dir;
 
-	m_pCurrentEntity = IEngineStudio.GetCurrentEntity();
 	IEngineStudio.GetTimes(&m_nFrameCount, &m_clTime, &m_clOldTime);
 	IEngineStudio.GetViewInfo(m_vRenderOrigin, m_vUp, m_vRight, m_vNormal);
 	IEngineStudio.GetAliasScale(&m_fSoftwareXScale, &m_fSoftwareYScale);

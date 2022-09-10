@@ -23,4 +23,6 @@ public:
 	void EXPORT ItemTouch(CBaseEntity* pOther);
 	void EXPORT Materialize();
 	virtual bool MyTouch(CBasePlayer* pPlayer) { return false; }
+
+	int ObjectCaps() override { return CBaseEntity::ObjectCaps() | FCAP_HOLDABLE; }
 };

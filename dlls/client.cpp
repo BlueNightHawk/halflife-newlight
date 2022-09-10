@@ -506,7 +506,14 @@ void ClientCommand(edict_t* pEntity)
 
 	auto player = GetClassPtr<CBasePlayer>(reinterpret_cast<CBasePlayer*>(&pEntity->v));
 
-	if (FStrEq(pcmd, "say"))
+	if (FStrEq(pcmd, "+kick"))
+	{
+		player->Kick();
+	}
+	else if (FStrEq(pcmd, "-kick"))
+	{
+	}
+	else if (FStrEq(pcmd, "say"))
 	{
 		Host_Say(pEntity, false);
 	}
@@ -1198,7 +1205,7 @@ int AddToFullPack(struct entity_state_s* state, int e, edict_t* ent, edict_t* ho
 	*/
 
 
-	state->eflags = ent->v.flags;
+	state->eflags = entity->m_EFlags;
 
 	if ((ent->v.flags & FL_FLY) != 0)
 	{

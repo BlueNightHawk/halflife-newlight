@@ -357,6 +357,11 @@ public:
 	bool m_bIsSpawning = false;
 
 	void SetCrosshairAngle(const float x, const float y);
+
+	void Kick(CBaseEntity *pHurt = nullptr);
+
+	EHANDLE m_pHeldItem;
+	void UpdateHeldItem();
 };
 
 inline void CBasePlayer::SetWeaponBit(int id)

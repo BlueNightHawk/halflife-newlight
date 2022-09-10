@@ -115,6 +115,8 @@ TYPEDESCRIPTION CBasePlayer::m_playerSaveData[] =
 		DEFINE_FIELD(CBasePlayer, m_SndRoomtype, FIELD_INTEGER),
 		DEFINE_FIELD(CBasePlayer, m_flSndRange, FIELD_FLOAT),
 
+		DEFINE_FIELD(CBasePlayer, m_pHeldItem, FIELD_EHANDLE),
+
 		//DEFINE_FIELD( CBasePlayer, m_fDeadTime, FIELD_FLOAT ), // only used in multiplayer games
 		//DEFINE_FIELD( CBasePlayer, m_fGameHUDInitialized, FIELD_INTEGER ), // only used in multiplayer games
 		//DEFINE_FIELD( CBasePlayer, m_flStopExtraSoundTime, FIELD_TIME ),
@@ -1400,6 +1402,11 @@ void CBasePlayer::PlayerUse()
 	if (((pev->button | m_afButtonPressed | m_afButtonReleased) & IN_USE) == 0)
 		return;
 
+	if (m_pHeldItem != nullptr)
+	{
+		return;
+	}
+
 	// Hit Use on a train?
 	if ((m_afButtonPressed & IN_USE) != 0)
 	{
@@ -1446,7 +1453,7 @@ void CBasePlayer::PlayerUse()
 	while ((pObject = UTIL_FindEntityInSphere(pObject, pev->origin, PLAYER_SEARCH_RADIUS)) != NULL)
 	{
 
-		if ((pObject->ObjectCaps() & (FCAP_IMPULSE_USE | FCAP_CONTINUOUS_USE | FCAP_ONOFF_USE)) != 0)
+		if ((pObject->ObjectCaps() & (FCAP_IMPULSE_USE | FCAP_CONTINUOUS_USE | FCAP_ONOFF_USE | FCAP_HOLDABLE)) != 0)
 		{
 			// !!!PERFORMANCE- should this check be done on a per case basis AFTER we've determined that
 			// this object is actually usable? This dot is being done for every object within PLAYER_SEARCH_RADIUS
@@ -1478,7 +1485,17 @@ void CBasePlayer::PlayerUse()
 		if ((m_afButtonPressed & IN_USE) != 0)
 			EMIT_SOUND(ENT(pev), CHAN_ITEM, "common/wpn_select.wav", 0.4, ATTN_NORM);
 
-		if (((pev->button & IN_USE) != 0 && (caps & FCAP_CONTINUOUS_USE) != 0) ||
+		if ((m_afButtonPressed & IN_USE) != 0 && (caps & FCAP_HOLDABLE) != 0)
+		{
+			m_pHeldItem = pObject;
+			m_flNextAttack = UTIL_WeaponTimeBase() + 0.2f;
+			if (m_pActiveItem)
+			{
+				m_pActiveItem->Holster();
+				pev->viewmodel = 0;
+			}
+		}
+		else if (((pev->button & IN_USE) != 0 && (caps & FCAP_CONTINUOUS_USE) != 0) ||
 			((m_afButtonPressed & IN_USE) != 0 && (caps & (FCAP_IMPULSE_USE | FCAP_ONOFF_USE)) != 0))
 		{
 			if ((caps & FCAP_CONTINUOUS_USE) != 0)
@@ -1499,7 +1516,44 @@ void CBasePlayer::PlayerUse()
 	}
 }
 
+void CBasePlayer::UpdateHeldItem()
+{
+	if (!m_pHeldItem)
+		return;
 
+	UTIL_MakeVectors(pev->v_angle);
+
+	if ((pev->button & IN_USE) != 0 && m_flNextAttack < UTIL_WeaponTimeBase())
+	{
+		if (m_pActiveItem)
+			m_pActiveItem->Deploy();
+
+		m_pHeldItem->pev->velocity = pev->velocity;
+		m_pHeldItem = nullptr;
+		m_flNextAttack = UTIL_WeaponTimeBase() + 0.2f;
+		return;
+	}
+	if ((pev->button & IN_ATTACK) != 0 && m_flNextAttack < UTIL_WeaponTimeBase())
+	{
+		if (m_pActiveItem)
+			m_pActiveItem->Deploy();
+
+		m_pHeldItem->pev->velocity = pev->velocity + gpGlobals->v_forward * 100;
+		m_pHeldItem = nullptr;
+		m_flNextAttack = UTIL_WeaponTimeBase() + 0.2f;
+		return;
+	}
+	if ((m_EFlags & EFLAG_PLAYERKICK) != 0)
+	{
+		if (m_pActiveItem)
+			m_pActiveItem->Deploy();
+
+		m_pHeldItem = nullptr;
+		return;
+	}
+
+	m_pHeldItem->pev->velocity = ((pev->origin - m_pHeldItem->pev->origin) + gpGlobals->v_forward * 60) * 30;
+}
 
 void CBasePlayer::Jump()
 {
@@ -1758,6 +1812,8 @@ void CBasePlayer::PreThink()
 	m_afButtonReleased = buttonsChanged & (~pev->button); // The ones not down are "released"
 
 	g_pGameRules->PlayerThink(this);
+
+	UpdateHeldItem();
 
 	if (g_fGameOver)
 		return; // intermission or finale
@@ -3736,6 +3792,9 @@ void CBasePlayer::ItemPreFrame()
 	if (!m_pActiveItem)
 		return;
 
+	if (m_pHeldItem)
+		return;
+
 	m_pActiveItem->ItemPreFrame();
 }
 
@@ -3751,6 +3810,9 @@ void CBasePlayer::ItemPostFrame()
 {
 	// check if the player is using a tank
 	if (m_pTank != NULL)
+		return;
+
+	if (m_pHeldItem)
 		return;
 
 	if (gpGlobals->time < m_flNextAttack)
@@ -4128,6 +4190,17 @@ void CBasePlayer::UpdateClientData()
 		MESSAGE_BEGIN(MSG_ONE, SVC_ROOMTYPE, nullptr, edict());
 		WRITE_SHORT((short)m_SndRoomtype); // sequence number
 		MESSAGE_END();
+	}
+
+	if ((m_EFlags & EFLAG_PLAYERKICK) != 0)
+	{
+		g_engfuncs.pfnSetClientMaxspeed(edict(), 170);
+	}
+	if (m_flNextAttack < UTIL_WeaponTimeBase() && (m_EFlags & EFLAG_PLAYERKICK) != 0)
+	{
+		m_EFlags &= ~EFLAG_PLAYERKICK;
+		g_engfuncs.pfnSetClientMaxspeed(edict(), CVAR_GET_FLOAT("sv_maxspeed"));
+		m_flNextAttack = UTIL_WeaponTimeBase() + 0.15;
 	}
 
 	//Handled anything that needs resetting
@@ -4664,6 +4737,83 @@ void CBasePlayer::SetCrosshairAngle(const float x, const float y)
 	WRITE_COORD(x);
 	WRITE_COORD(y);
 	MESSAGE_END();
+}
+
+void CBasePlayer::Kick(CBaseEntity *pHurt)
+{
+	if (m_flNextAttack > UTIL_WeaponTimeBase() || (m_EFlags & EFLAG_PLAYERKICK) != 0)
+		return;
+
+	TraceResult tr;
+
+	if (m_pHeldItem)
+		pHurt = m_pHeldItem;
+
+	UTIL_MakeVectors(pev->v_angle);
+	Vector ofs = pev->view_ofs;
+	Vector vecStart = pev->origin + ofs;
+	Vector vecEnd = vecStart + (gpGlobals->v_forward * 70);
+
+	if (pev->v_angle[0] < -20)
+		return;
+
+	if (!pHurt)
+	{
+		UTIL_TraceHull(vecStart, vecEnd, dont_ignore_monsters, head_hull, ENT(pev), &tr);
+
+
+		if (tr.pHit)
+		{
+			pHurt = CBaseEntity::Instance(tr.pHit);
+		}
+		if (!pHurt || pHurt->pev->movetype == MOVETYPE_NONE)
+		{
+			CBaseEntity* pEnt;
+			while (pEnt = UTIL_FindEntityInSphere(pHurt, tr.vecEndPos, 6))
+			{
+				if (pEnt->pev->movetype != MOVETYPE_NONE || (pEnt->ObjectCaps() & FCAP_HOLDABLE) != 0)
+				{
+					pHurt = pEnt;
+					break;
+				}
+			}
+		}
+	}
+
+	if (pHurt != nullptr)
+	{
+		// SOUND HERE!
+		pHurt->pev->punchangle.x = 15;
+		pHurt->pev->velocity = pHurt->pev->velocity + gpGlobals->v_forward * 100 + gpGlobals->v_up * 50;
+
+		ClearMultiDamage();
+
+		// first swing does full damage
+		pHurt->TraceAttack(pev, gSkillData.plrDmgCrowbar / 2, gpGlobals->v_forward, &tr, DMG_CLUB);
+
+		ApplyMultiDamage(pev, pev);
+
+		// play thwack or smack sound
+		switch (RANDOM_LONG(0, 2))
+		{
+		case 0:
+			EMIT_SOUND(ENT(pev), CHAN_ITEM, "weapons/cbar_hitbod1.wav", 1, ATTN_NORM);
+			break;
+		case 1:
+			EMIT_SOUND(ENT(pev), CHAN_ITEM, "weapons/cbar_hitbod2.wav", 1, ATTN_NORM);
+			break;
+		case 2:
+			EMIT_SOUND(ENT(pev), CHAN_ITEM, "weapons/cbar_hitbod3.wav", 1, ATTN_NORM);
+			break;
+		}
+
+		pev->velocity = -gpGlobals->v_forward * 120;
+		g_engfuncs.pfnSetClientMaxspeed(edict(), 170);
+	}
+
+
+	m_EFlags |= EFLAG_PLAYERKICK;	
+	m_flNextAttack = UTIL_WeaponTimeBase() + 0.5;
 }
 
 //=========================================================

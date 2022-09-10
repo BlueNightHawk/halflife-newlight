@@ -543,31 +543,46 @@ void view::CalcViewModelLag(ref_params_t* pparams, Vector& origin, const Vector 
 
 void view::RetractWeapon(struct ref_params_s* pparams, cl_entity_s* view)
 {
+	cl_entity_s* pplayer = gEngfuncs.GetLocalPlayer();
 	static float flRetract = 0.0f;
+	static float flRetract2 = 0.0f;
 	Vector vecSrc, vecEnd;
 	int idx = pparams->viewentity;
 	pmtrace_t tr;
 
-	vecSrc = pparams->vieworg;
-	vecEnd = vecSrc + Vector(pparams->forward) * 30;
+	if ((pplayer->curstate.eflags & EFLAG_PLAYERKICK) == 0)
+	{
+		vecSrc = pparams->vieworg;
+		vecEnd = vecSrc + Vector(pparams->forward) * 30;
 
-	gEngfuncs.pEventAPI->EV_SetUpPlayerPrediction(0, 1);
+		gEngfuncs.pEventAPI->EV_SetUpPlayerPrediction(0, 1);
 
-	// Store off the old count
-	gEngfuncs.pEventAPI->EV_PushPMStates();
+		// Store off the old count
+		gEngfuncs.pEventAPI->EV_PushPMStates();
 
-	// Now add in all of the players.
-	gEngfuncs.pEventAPI->EV_SetSolidPlayers(idx - 1);
+		// Now add in all of the players.
+		gEngfuncs.pEventAPI->EV_SetSolidPlayers(idx - 1);
 
-	gEngfuncs.pEventAPI->EV_SetTraceHull(2);
-	gEngfuncs.pEventAPI->EV_PlayerTrace(vecSrc, vecEnd, PM_STUDIO_BOX, -1, &tr);
+		gEngfuncs.pEventAPI->EV_SetTraceHull(2);
+		gEngfuncs.pEventAPI->EV_PlayerTrace(vecSrc, vecEnd, PM_STUDIO_BOX, -1, &tr);
 
-	flRetract = nlutils::lerp(flRetract, (1 - tr.fraction), pparams->frametime * 8.0f);
+		flRetract = nlutils::lerp(flRetract, (1 - tr.fraction), pparams->frametime * 8.0f);
+		flRetract2 = nlutils::lerp(flRetract2, 0.0, pparams->frametime * 10.0f);
 
-	view->origin = view->origin - Vector(pparams->forward) * (flRetract*8.5f);
+		gEngfuncs.pEventAPI->EV_PopPMStates();
+	}
+	else
+	{
+		flRetract = nlutils::lerp(flRetract, 0, pparams->frametime * 8.0f);
+		flRetract2 = nlutils::lerp(flRetract2, 1.0f, pparams->frametime * 10.0f);
+	}
+
+	view->origin = view->origin - Vector(pparams->forward) * (flRetract * 8.5f);
 	view->angles[1] += (flRetract * 8.5f);
 
-	gEngfuncs.pEventAPI->EV_PopPMStates();
+	view->origin = view->origin - Vector(pparams->up) * (flRetract * 8.5f);
+	view->angles[0] -= (flRetract2 * 8.5f);
+	view->angles[1] -= (flRetract2 * 8.5f);
 }
 
 /*

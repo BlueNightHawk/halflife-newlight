@@ -41,7 +41,7 @@ CBaseEntity
 #define FCAP_ONOFF_USE 0x00000020		  // can be used by the player
 #define FCAP_DIRECTIONAL_USE 0x00000040	  // Player sends +/- 1 when using (currently only tracktrains)
 #define FCAP_MASTER 0x00000080			  // Can be used to "master" other entities (like multisource)
-
+#define FCAP_HOLDABLE 0x00000100			  // Holdable Entity
 // UNDONE: This will ignore transition volumes (trigger_transition), but not the PVS!!!
 #define FCAP_FORCE_TRANSITION 0x00000080 // ALWAYS goes across transitions
 

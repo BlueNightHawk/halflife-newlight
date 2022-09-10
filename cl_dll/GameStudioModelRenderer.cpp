@@ -70,6 +70,7 @@ R_StudioDrawModel
 */
 int R_StudioDrawModel(int flags)
 {
+	g_StudioRenderer.m_pCurrentEntity = IEngineStudio.GetCurrentEntity();
 	return static_cast<int>(g_StudioRenderer.StudioDrawModel(flags));
 }
 
