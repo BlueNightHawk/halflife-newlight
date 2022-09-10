@@ -149,6 +149,7 @@ int DLLEXPORT HUD_VidInit()
 
 	VGui_Startup();
 
+	nlutils::VidInit();
 	return 1;
 }
 
@@ -168,6 +169,8 @@ void DLLEXPORT HUD_Init()
 	InitInput();
 	gHUD.Init();
 	Scheme_Init();
+
+	nlcvars::InitCvars();
 }
 
 
@@ -179,7 +182,6 @@ called every screen frame to
 redraw the HUD.
 ===========================
 */
-
 int DLLEXPORT HUD_Redraw(float time, int intermission)
 {
 	//	RecClHudRedraw(time, intermission);

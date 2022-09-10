@@ -355,6 +355,8 @@ public:
 
 	//True if the player is currently spawning.
 	bool m_bIsSpawning = false;
+
+	void SetCrosshairAngle(const float x, const float y);
 };
 
 inline void CBasePlayer::SetWeaponBit(int id)

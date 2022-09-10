@@ -25,6 +25,8 @@
 #include "event_api.h"
 #include "pm_shared.h"
 
+#include "view.h"
+
 #define IS_FIRSTPERSON_SPEC (g_iUser1 == OBS_IN_EYE || (g_iUser1 && (gHUD.m_Spectator.m_pip->value == INSET_IN_EYE)))
 /*
 =================
@@ -106,23 +108,19 @@ void EV_GetGunPosition(event_args_t* args, float* pos, float* origin)
 
 	idx = args->entindex;
 
-	Vector view_ofs = VEC_VIEW;
-
 	if (EV_IsPlayer(idx))
 	{
-		// in spec mode use entity viewheigh, not own
+		Vector view_ofs = VEC_VIEW;
 		if (EV_IsLocal(idx) && !IS_FIRSTPERSON_SPEC)
 		{
-			// Grab predicted result for local player
-			gEngfuncs.pEventAPI->EV_LocalPlayerViewheight(view_ofs);
+			gEngfuncs.pEventAPI->EV_LocalPlayerViewheight((float*)&view_ofs);
 		}
 		else if (args->ducking == 1)
 		{
 			view_ofs = VEC_DUCK_VIEW;
 		}
+		VectorAdd(origin, view_ofs, pos);
 	}
-
-	VectorAdd(origin, view_ofs, pos);
 }
 
 /*
@@ -158,13 +156,9 @@ void EV_GetDefaultShellInfo(event_args_t* args, float* origin, float* velocity, 
 
 	Vector view_ofs = VEC_VIEW;
 
-	if (EV_IsPlayer(idx))
+	if ((!EV_IsLocal(idx) || nlutils::IsThirdPerson()) && EV_IsPlayer(idx))
 	{
-		if (EV_IsLocal(idx))
-		{
-			gEngfuncs.pEventAPI->EV_LocalPlayerViewheight(view_ofs);
-		}
-		else if (args->ducking == 1)
+		if (args->ducking == 1)
 		{
 			view_ofs = VEC_DUCK_VIEW;
 		}
@@ -175,8 +169,24 @@ void EV_GetDefaultShellInfo(event_args_t* args, float* origin, float* velocity, 
 
 	for (i = 0; i < 3; i++)
 	{
-		ShellVelocity[i] = velocity[i] + right[i] * fR + up[i] * fU + forward[i] * 25;
-		ShellOrigin[i] = origin[i] + view_ofs[i] + up[i] * upScale + forward[i] * forwardScale + right[i] * rightScale;
+		if (EV_IsLocal(idx) && !nlutils::IsThirdPerson())
+		{
+			Vector v_forward, v_right, v_up;
+			Vector v_forward2, v_right2, v_up2;
+			Vector v_angles = nlutils::VectorInvertPitch(GetViewEntity()->angles);
+			Vector v_angles2 = nlutils::ViewParams.viewangles;
+
+			AngleVectors(v_angles, v_forward, v_right, v_up);
+			AngleVectors(v_angles2, v_forward2, v_right2, v_up2);
+
+			ShellVelocity[i] = velocity[i] + v_right[i] * fR + v_up[i] * fU + v_forward[i] * 25;
+			ShellOrigin[i] = GetViewEntity()->origin[i] + v_up2[i] * upScale + v_forward2[i] * forwardScale + v_right2[i] * rightScale;
+		}
+		else
+		{
+			ShellVelocity[i] = velocity[i] + right[i] * fR + up[i] * fU + forward[i] * 25;
+			ShellOrigin[i] = origin[i] + view_ofs[i] + up[i] * upScale + forward[i] * forwardScale + right[i] * rightScale;
+		}
 	}
 }
 

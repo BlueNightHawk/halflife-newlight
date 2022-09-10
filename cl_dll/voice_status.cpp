@@ -385,7 +385,7 @@ void CVoiceStatus::UpdateSpeakerStatus(int entindex, bool bTalking)
 		return;
 	}
 
-	if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+	if (0 != nlcvars::voice_clientdebug->value)
 	{
 		char msg[256];
 		snprintf(msg, sizeof(msg), "CVoiceStatus::UpdateSpeakerStatus: ent %d talking = %d\n", entindex, static_cast<int>(bTalking));
@@ -490,7 +490,7 @@ void CVoiceStatus::UpdateServerState(bool bForce)
 	char const* pLevelName = gEngfuncs.pfnGetLevelName();
 	if (pLevelName[0] == 0)
 	{
-		if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+		if (0 != nlcvars::voice_clientdebug->value)
 		{
 			gEngfuncs.pfnConsolePrint("CVoiceStatus::UpdateServerState: pLevelName[0]==0\n");
 		}
@@ -498,7 +498,7 @@ void CVoiceStatus::UpdateServerState(bool bForce)
 		return;
 	}
 
-	int bCVarModEnable = static_cast<int>(0 != gEngfuncs.pfnGetCvarFloat("voice_modenable"));
+	int bCVarModEnable = static_cast<int>(0 != nlcvars::voice_modenable->value);
 	if (bForce || m_bServerModEnable != bCVarModEnable)
 	{
 		m_bServerModEnable = bCVarModEnable;
@@ -507,7 +507,7 @@ void CVoiceStatus::UpdateServerState(bool bForce)
 		snprintf(str, sizeof(str), "VModEnable %d", m_bServerModEnable);
 		ServerCmd(str);
 
-		if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+		if (0 != nlcvars::voice_clientdebug->value)
 		{
 			char msg[256];
 			sprintf(msg, "CVoiceStatus::UpdateServerState: Sending '%s'\n", str);
@@ -551,7 +551,7 @@ void CVoiceStatus::UpdateServerState(bool bForce)
 
 	if (bChange || bForce)
 	{
-		if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+		if (0 != nlcvars::voice_clientdebug->value)
 		{
 			char msg[256];
 			sprintf(msg, "CVoiceStatus::UpdateServerState: Sending '%s'\n", str);
@@ -562,7 +562,7 @@ void CVoiceStatus::UpdateServerState(bool bForce)
 	}
 	else
 	{
-		if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+		if (0 != nlcvars::voice_clientdebug->value)
 		{
 			gEngfuncs.pfnConsolePrint("CVoiceStatus::UpdateServerState: no change\n");
 		}
@@ -634,7 +634,7 @@ void CVoiceStatus::HandleVoiceMaskMsg(int iSize, void* pbuf)
 		m_AudiblePlayers.SetDWord(dw, (unsigned long)READ_LONG());
 		m_ServerBannedPlayers.SetDWord(dw, (unsigned long)READ_LONG());
 
-		if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+		if (0 != nlcvars::voice_clientdebug->value)
 		{
 			char str[256];
 			gEngfuncs.pfnConsolePrint("CVoiceStatus::HandleVoiceMaskMsg\n");
@@ -652,7 +652,7 @@ void CVoiceStatus::HandleVoiceMaskMsg(int iSize, void* pbuf)
 
 void CVoiceStatus::HandleReqStateMsg(int iSize, void* pbuf)
 {
-	if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+	if (0 != nlcvars::voice_clientdebug->value)
 	{
 		gEngfuncs.pfnConsolePrint("CVoiceStatus::HandleReqStateMsg\n");
 	}
@@ -755,7 +755,7 @@ void CVoiceStatus::RepositionLabels()
 		m_pLocalLabel->setParent(*m_pParentPanel);
 		m_pLocalLabel->setVisible(true);
 
-		if (m_bServerAcked && 0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+		if (m_bServerAcked && 0 != nlcvars::voice_clientdebug->value)
 			m_pLocalLabel->setImage(m_pAckBitmap);
 		else
 			m_pLocalLabel->setImage(m_pLocalBitmap);
@@ -849,7 +849,7 @@ bool CVoiceStatus::IsPlayerAudible(int iPlayer)
 //-----------------------------------------------------------------------------
 void CVoiceStatus::SetPlayerBlockedState(int iPlayer, bool blocked)
 {
-	if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+	if (0 != nlcvars::voice_clientdebug->value)
 	{
 		gEngfuncs.pfnConsolePrint("CVoiceStatus::SetPlayerBlockedState part 1\n");
 	}
@@ -858,13 +858,13 @@ void CVoiceStatus::SetPlayerBlockedState(int iPlayer, bool blocked)
 	if (0 == gEngfuncs.GetPlayerUniqueID(iPlayer, playerID))
 		return;
 
-	if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+	if (0 != nlcvars::voice_clientdebug->value)
 	{
 		gEngfuncs.pfnConsolePrint("CVoiceStatus::SetPlayerBlockedState part 2\n");
 	}
 
 	// Squelch or (try to) unsquelch this player.
-	if (0 != gEngfuncs.pfnGetCvarFloat("voice_clientdebug"))
+	if (0 != nlcvars::voice_clientdebug->value)
 	{
 		char str[256];
 		sprintf(str, "CVoiceStatus::SetPlayerBlockedState: setting player %d ban to %d\n", iPlayer, static_cast<int>(!m_BanMgr.GetPlayerBan(playerID)));

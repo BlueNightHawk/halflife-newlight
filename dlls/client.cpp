@@ -900,6 +900,9 @@ void ClientPrecache()
 	PRECACHE_SOUND("player/geiger2.wav");
 	PRECACHE_SOUND("player/geiger1.wav");
 
+	PRECACHE_MODEL("sprites/stmbal1.spr");
+	PRECACHE_MODEL("sprites/smallspark.spr");
+	
 	if (giPrecacheGrunt)
 		UTIL_PrecacheOther("monster_human_grunt");
 }
@@ -1194,6 +1197,9 @@ int AddToFullPack(struct entity_state_s* state, int e, edict_t* ent, edict_t* ho
 	}
 	*/
 
+
+	state->eflags = ent->v.flags;
+
 	if ((ent->v.flags & FL_FLY) != 0)
 	{
 		state->eflags |= EFLAG_SLERP;
@@ -1202,8 +1208,6 @@ int AddToFullPack(struct entity_state_s* state, int e, edict_t* ent, edict_t* ho
 	{
 		state->eflags &= ~EFLAG_SLERP;
 	}
-
-	state->eflags |= entity->m_EFlags;
 
 	state->scale = ent->v.scale;
 	state->solid = ent->v.solid;
@@ -1585,64 +1589,6 @@ int GetWeaponData(struct edict_s* player, struct weapon_data_s* info)
 {
 	memset(info, 0, MAX_WEAPONS * sizeof(weapon_data_t));
 
-#if defined(CLIENT_WEAPONS)
-	int i;
-	weapon_data_t* item;
-	entvars_t* pev = &player->v;
-	CBasePlayer* pl = dynamic_cast<CBasePlayer*>(CBasePlayer::Instance(pev));
-	CBasePlayerWeapon* gun;
-
-	ItemInfo II;
-
-	if (!pl)
-		return 1;
-
-	// go through all of the weapons and make a list of the ones to pack
-	for (i = 0; i < MAX_ITEM_TYPES; i++)
-	{
-		if (pl->m_rgpPlayerItems[i])
-		{
-			// there's a weapon here. Should I pack it?
-			CBasePlayerItem* pPlayerItem = pl->m_rgpPlayerItems[i];
-
-			while (pPlayerItem)
-			{
-				gun = pPlayerItem->GetWeaponPtr();
-				if (gun && gun->UseDecrement())
-				{
-					// Get The ID.
-					memset(&II, 0, sizeof(II));
-					gun->GetItemInfo(&II);
-
-					if (II.iId >= 0 && II.iId < MAX_WEAPONS)
-					{
-						item = &info[II.iId];
-
-						item->m_iId = II.iId;
-						item->m_iClip = gun->m_iClip;
-
-						item->m_flTimeWeaponIdle = V_max(gun->m_flTimeWeaponIdle, -0.001);
-						item->m_flNextPrimaryAttack = V_max(gun->m_flNextPrimaryAttack, -0.001);
-						item->m_flNextSecondaryAttack = V_max(gun->m_flNextSecondaryAttack, -0.001);
-						item->m_fInReload = static_cast<int>(gun->m_fInReload);
-						item->m_fInSpecialReload = gun->m_fInSpecialReload;
-						item->fuser1 = V_max(gun->pev->fuser1, -0.001);
-						item->fuser2 = gun->m_flStartThrow;
-						item->fuser3 = gun->m_flReleaseThrow;
-						item->iuser1 = gun->m_chargeReady;
-						item->iuser2 = gun->m_fInAttack;
-						item->iuser3 = gun->m_fireState;
-
-						gun->GetWeaponData(*item);
-
-						//						item->m_flPumpTime				= V_max( gun->m_flPumpTime, -0.001 );
-					}
-				}
-				pPlayerItem = pPlayerItem->m_pNext;
-			}
-		}
-	}
-#endif
 	return 1;
 }
 
@@ -1714,53 +1660,6 @@ void UpdateClientData(const edict_t* ent, int sendweapons, struct clientdata_s* 
 		cd->iuser1 = pev->iuser1;
 		cd->iuser2 = pev->iuser2;
 	}
-
-
-
-#if defined(CLIENT_WEAPONS)
-	if (0 != sendweapons)
-	{
-		if (pl)
-		{
-			cd->m_flNextAttack = pl->m_flNextAttack;
-			cd->fuser2 = pl->m_flNextAmmoBurn;
-			cd->fuser3 = pl->m_flAmmoStartCharge;
-			cd->vuser1.x = pl->ammo_9mm;
-			cd->vuser1.y = pl->ammo_357;
-			cd->vuser1.z = pl->ammo_argrens;
-			cd->ammo_nails = pl->ammo_bolts;
-			cd->ammo_shells = pl->ammo_buckshot;
-			cd->ammo_rockets = pl->ammo_rockets;
-			cd->ammo_cells = pl->ammo_uranium;
-			cd->vuser2.x = pl->ammo_hornets;
-
-
-			if (pl->m_pActiveItem)
-			{
-				CBasePlayerWeapon* gun = pl->m_pActiveItem->GetWeaponPtr();
-				if (gun && gun->UseDecrement())
-				{
-					ItemInfo II;
-					memset(&II, 0, sizeof(II));
-					gun->GetItemInfo(&II);
-
-					cd->m_iId = II.iId;
-
-					cd->vuser3.z = gun->m_iSecondaryAmmoType;
-					cd->vuser4.x = gun->m_iPrimaryAmmoType;
-					cd->vuser4.y = pl->m_rgAmmo[gun->m_iPrimaryAmmoType];
-					cd->vuser4.z = pl->m_rgAmmo[gun->m_iSecondaryAmmoType];
-
-					if (pl->m_pActiveItem->m_iId == WEAPON_RPG)
-					{
-						cd->vuser2.y = static_cast<vec_t>(((CRpg*)pl->m_pActiveItem)->m_fSpotActive);
-						cd->vuser2.z = ((CRpg*)pl->m_pActiveItem)->m_cActiveRockets;
-					}
-				}
-			}
-		}
-	}
-#endif
 }
 
 /*

@@ -17,6 +17,7 @@
 #include "event_api.h"
 #include "pmtrace.h"
 #include "ev_hldm.h"
+#include "Exports.h"
 
 /*
 ======================
@@ -51,4 +52,9 @@ void Game_HookEvents()
 	gEngfuncs.pfnHookEvent("events/firehornet.sc", EV_HornetGunFire);
 	gEngfuncs.pfnHookEvent("events/tripfire.sc", EV_TripmineFire);
 	gEngfuncs.pfnHookEvent("events/snarkfire.sc", EV_SnarkFire);
+}
+
+// Stub
+void DLLEXPORT HUD_PostRunCmd(struct local_state_s* from, struct local_state_s* to, struct usercmd_s* cmd, int runfuncs, double time, unsigned int random_seed)
+{
 }

@@ -33,7 +33,6 @@ float anglemod(float a);
 void IN_Init();
 void IN_Move(float frametime, usercmd_t* cmd);
 void IN_Shutdown();
-void V_Init();
 void VectorAngles(const float* forward, float* angles);
 int CL_ButtonBits(bool);
 
@@ -464,6 +463,9 @@ void IN_UseDown()
 void IN_UseUp() { KeyUp(&in_use); }
 void IN_JumpDown()
 {
+	if (view::GetJumpState() == 0)
+		view::SetJumpState(1);
+
 	KeyDown(&in_jump);
 	gHUD.m_Spectator.HandleButtonsDown(IN_JUMP);
 }
@@ -527,7 +529,7 @@ void IN_MLookUp()
 	KeyUp(&in_mlook);
 	if ((in_mlook.state & 1) == 0 && 0 != lookspring->value)
 	{
-		V_StartPitchDrift();
+		view::StartPitchDrift();
 	}
 }
 
@@ -615,7 +617,7 @@ void CL_AdjustAngles(float frametime, float* viewangles)
 	}
 	if ((in_klook.state & 1) != 0)
 	{
-		V_StopPitchDrift();
+		view::StopPitchDrift();
 		viewangles[PITCH] -= speed * cl_pitchspeed->value * CL_KeyState(&in_forward);
 		viewangles[PITCH] += speed * cl_pitchspeed->value * CL_KeyState(&in_back);
 	}
@@ -627,7 +629,7 @@ void CL_AdjustAngles(float frametime, float* viewangles)
 	viewangles[PITCH] += speed * cl_pitchspeed->value * down;
 
 	if (0 != up || 0 != down)
-		V_StopPitchDrift();
+		view::StopPitchDrift();
 
 	if (viewangles[PITCH] > cl_pitchdown->value)
 		viewangles[PITCH] = cl_pitchdown->value;
@@ -996,7 +998,7 @@ void InitInput()
 	// Initialize keyboard
 	KB_Init();
 	// Initialize view system
-	V_Init();
+	view::Init();
 }
 
 /*

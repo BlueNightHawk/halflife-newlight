@@ -103,7 +103,7 @@ bool CGauss::Deploy()
 
 void CGauss::Holster()
 {
-	SendStopEvent(true);
+	SendStopEvent();
 
 	m_pPlayer->m_flNextAttack = UTIL_WeaponTimeBase() + 0.5;
 
@@ -149,7 +149,7 @@ void CGauss::SecondaryAttack()
 		{
 			EMIT_SOUND_DYN(ENT(m_pPlayer->pev), CHAN_WEAPON, "weapons/electro4.wav", 1.0, ATTN_NORM, 0, 80 + RANDOM_LONG(0, 0x3f));
 			//Have to send to the host as well because the client will predict the frame with m_fInAttack == 0
-			SendStopEvent(true);
+			SendStopEvent();
 			SendWeaponAnim(GAUSS_IDLE);
 			m_fInAttack = 0;
 		}
@@ -185,7 +185,7 @@ void CGauss::SecondaryAttack()
 		m_pPlayer->m_flStartCharge = gpGlobals->time;
 		m_pPlayer->m_flAmmoStartCharge = UTIL_WeaponTimeBase() + GetFullChargeTime();
 
-		PLAYBACK_EVENT_FULL(FEV_NOTHOST, m_pPlayer->edict(), m_usGaussSpin, 0.0, g_vecZero, g_vecZero, 0.0, 0.0, 110, 0, 0, 0);
+		PLAYBACK_EVENT_FULL(0, m_pPlayer->edict(), m_usGaussSpin, 0.0, g_vecZero, g_vecZero, 0.0, 0.0, 110, 0, 0, 0);
 
 		m_iSoundState = SND_CHANGE_PITCH;
 	}
@@ -243,7 +243,7 @@ void CGauss::SecondaryAttack()
 		if (m_iSoundState == 0)
 			ALERT(at_console, "sound state %d\n", m_iSoundState);
 
-		PLAYBACK_EVENT_FULL(FEV_NOTHOST, m_pPlayer->edict(), m_usGaussSpin, 0.0, g_vecZero, g_vecZero, 0.0, 0.0, pitch, 0, (m_iSoundState == SND_CHANGE_PITCH) ? 1 : 0, 0);
+		PLAYBACK_EVENT_FULL(0, m_pPlayer->edict(), m_usGaussSpin, 0.0, g_vecZero, g_vecZero, 0.0, 0.0, pitch, 0, (m_iSoundState == SND_CHANGE_PITCH) ? 1 : 0, 0);
 
 		m_iSoundState = SND_CHANGE_PITCH; // hack for going through level transitions
 
@@ -260,7 +260,7 @@ void CGauss::SecondaryAttack()
 			m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 1.0;
 			m_pPlayer->m_flNextAttack = UTIL_WeaponTimeBase() + 1.0;
 
-			SendStopEvent(false);
+			SendStopEvent();
 
 #ifndef CLIENT_DLL
 			m_pPlayer->TakeDamage(VARS(eoNullEntity), VARS(eoNullEntity), 50, DMG_SHOCK);
@@ -358,9 +358,9 @@ void CGauss::Fire(Vector vecOrigSrc, Vector vecDir, float flDamage)
 #endif
 
 	// The main firing event is sent unreliably so it won't be delayed.
-	PLAYBACK_EVENT_FULL(FEV_NOTHOST, m_pPlayer->edict(), m_usGaussFire, 0.0, m_pPlayer->pev->origin, m_pPlayer->pev->angles, flDamage, 0.0, 0, 0, m_fPrimaryFire ? 1 : 0, 0);
+	PLAYBACK_EVENT_FULL(0, m_pPlayer->edict(), m_usGaussFire, 0.0, m_pPlayer->pev->origin, m_pPlayer->pev->angles, flDamage, 0.0, 0, 0, m_fPrimaryFire ? 1 : 0, 0);
 
-	SendStopEvent(false);
+	SendStopEvent();
 
 
 	/*ALERT( at_console, "%f %f %f\n%f %f %f\n", 
@@ -568,20 +568,13 @@ void CGauss::WeaponIdle()
 	}
 }
 
-void CGauss::SendStopEvent(bool sendToHost)
+void CGauss::SendStopEvent()
 {
 	// This reliable event is used to stop the spinning sound
 	// It's delayed by a fraction of second to make sure it is delayed by 1 frame on the client
 	// It's sent reliably anyway, which could lead to other delays
 
-	int flags = FEV_RELIABLE | FEV_GLOBAL;
-
-	if (!sendToHost)
-	{
-		flags |= FEV_NOTHOST;
-	}
-
-	PLAYBACK_EVENT_FULL(flags, m_pPlayer->edict(), m_usGaussFire, 0.01, m_pPlayer->pev->origin, m_pPlayer->pev->angles, 0.0, 0.0, 0, 0, 0, 1);
+	PLAYBACK_EVENT_FULL(FEV_RELIABLE | FEV_GLOBAL, m_pPlayer->edict(), m_usGaussFire, 0.01, m_pPlayer->pev->origin, m_pPlayer->pev->angles, 0.0, 0.0, 0, 0, 0, 1);
 }
 
 

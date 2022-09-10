@@ -595,13 +595,13 @@ bool CHudAmmo::MsgFunc_CurWeapon(const char* pszName, int iSize, void* pbuf)
 	WEAPON* pWeapon = gWR.GetWeapon(iId);
 
 	if (!pWeapon)
+	{
 		return false;
-
+	}
 	if (iClip < -1)
 		pWeapon->iClip = abs(iClip);
 	else
 		pWeapon->iClip = iClip;
-
 
 	if (iState == 0) // we're not the current weapon, so update no more
 		return true;
@@ -848,6 +848,8 @@ bool CHudAmmo::Draw(float flTime)
 		return false;
 
 	WEAPON* pw = m_pWeapon; // shorthand
+
+	nlutils::iCurrentWeapon = pw->iId;
 
 	// SPR_Draw Ammo
 	if ((pw->iAmmoType < 0) && (pw->iAmmo2Type < 0))

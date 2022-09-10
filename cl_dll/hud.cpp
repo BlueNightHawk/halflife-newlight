@@ -81,7 +81,6 @@ static CHLVoiceStatusHelper g_VoiceStatusHelper;
 extern client_sprite_t* GetSpriteList(client_sprite_t* pList, const char* psz, int iRes, int iCount);
 
 extern cvar_t* sensitivity;
-cvar_t* cl_lw = NULL;
 cvar_t* cl_rollangle = nullptr;
 cvar_t* cl_rollspeed = nullptr;
 cvar_t* cl_bobtilt = nullptr;
@@ -130,6 +129,11 @@ int __MsgFunc_Weapons(const char* pszName, int iSize, void* pbuf)
 int __MsgFunc_GameMode(const char* pszName, int iSize, void* pbuf)
 {
 	return static_cast<int>(gHUD.MsgFunc_GameMode(pszName, iSize, pbuf));
+}
+
+int __MsgFunc_AutoAim(const char* pszName, int iSize, void* pbuf)
+{
+	return static_cast<int>(gHUD.MsgFunc_AutoAim(pszName, iSize, pbuf));
 }
 
 // TFFree Command Menu
@@ -318,6 +322,8 @@ void CHud::Init()
 	// VGUI Menus
 	HOOK_MESSAGE(VGUIMenu);
 
+	HOOK_MESSAGE(AutoAim);
+
 	CVAR_CREATE("hud_classautokill", "1", FCVAR_ARCHIVE | FCVAR_USERINFO); // controls whether or not to suicide immediately on TF class switch
 	CVAR_CREATE("hud_takesshots", "0", FCVAR_ARCHIVE);					   // controls whether or not to automatically take screenshots at the end of a round
 
@@ -330,10 +336,30 @@ void CHud::Init()
 	default_fov = CVAR_CREATE("default_fov", "90", FCVAR_ARCHIVE);
 	m_pCvarStealMouse = CVAR_CREATE("hud_capturemouse", "1", FCVAR_ARCHIVE);
 	m_pCvarDraw = CVAR_CREATE("hud_draw", "1", FCVAR_ARCHIVE);
-	cl_lw = gEngfuncs.pfnGetCvarPointer("cl_lw");
 	cl_rollangle = CVAR_CREATE("cl_rollangle", "2.0", FCVAR_ARCHIVE);
 	cl_rollspeed = CVAR_CREATE("cl_rollspeed", "200", FCVAR_ARCHIVE);
 	cl_bobtilt = CVAR_CREATE("cl_bobtilt", "0", FCVAR_ARCHIVE);
+
+	// NL : remove stinky cl_lw convar
+	if (auto *cl_lw = gEngfuncs.pfnGetCvarPointer("cl_lw"))
+	{
+		cvar_t* pCvar = gEngfuncs.GetFirstCvarPtr();
+		cvar_t* lastCvar = nullptr;
+
+		while (pCvar)
+		{
+			if (pCvar == cl_lw)
+			{
+				lastCvar->next = cl_lw->next;
+				delete gEngfuncs.pfnGetCvarPointer("cl_lw");
+				cl_lw = nullptr;
+				break;
+			}
+
+			lastCvar = pCvar;
+			pCvar = pCvar->next;
+		}
+	}
 
 	m_pSpriteList = NULL;
 

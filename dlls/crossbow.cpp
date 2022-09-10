@@ -322,14 +322,7 @@ void CCrossbow::FireSniperBolt()
 	m_pPlayer->m_iWeaponVolume = QUIET_GUN_VOLUME;
 	m_iClip--;
 
-	int flags;
-#if defined(CLIENT_WEAPONS)
-	flags = FEV_NOTHOST;
-#else
-	flags = 0;
-#endif
-
-	PLAYBACK_EVENT_FULL(flags, m_pPlayer->edict(), m_usCrossbow2, 0.0, g_vecZero, g_vecZero, 0, 0, m_iClip, 0, 0, 0);
+	PLAYBACK_EVENT_FULL(0, m_pPlayer->edict(), m_usCrossbow2, 0.0, g_vecZero, g_vecZero, 0, 0, m_iClip, 0, 0, 0);
 
 	// player "shoot" animation
 	m_pPlayer->SetAnimation(PLAYER_ATTACK1);
@@ -365,14 +358,8 @@ void CCrossbow::FireBolt()
 
 	m_iClip--;
 
-	int flags;
-#if defined(CLIENT_WEAPONS)
-	flags = FEV_NOTHOST;
-#else
-	flags = 0;
-#endif
 
-	PLAYBACK_EVENT_FULL(flags, m_pPlayer->edict(), m_usCrossbow, 0.0, g_vecZero, g_vecZero, 0, 0, m_iClip, 0, 0, 0);
+	PLAYBACK_EVENT_FULL(0, m_pPlayer->edict(), m_usCrossbow, 0.0, g_vecZero, g_vecZero, 0, 0, m_iClip, 0, 0, 0);
 
 	// player "shoot" animation
 	m_pPlayer->SetAnimation(PLAYER_ATTACK1);

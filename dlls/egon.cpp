@@ -146,13 +146,6 @@ void CEgon::Attack()
 	Vector vecAiming = gpGlobals->v_forward;
 	Vector vecSrc = m_pPlayer->GetGunPosition();
 
-	int flags;
-#if defined(CLIENT_WEAPONS)
-	flags = FEV_NOTHOST;
-#else
-	flags = 0;
-#endif
-
 	switch (m_fireState)
 	{
 	case FIRE_OFF:
@@ -166,7 +159,7 @@ void CEgon::Attack()
 
 		m_flAmmoUseTime = gpGlobals->time; // start using ammo ASAP.
 
-		PLAYBACK_EVENT_FULL(flags, m_pPlayer->edict(), m_usEgonFire, 0.0, g_vecZero, g_vecZero, 0.0, 0.0, 0, m_fireMode, 1, 0);
+		PLAYBACK_EVENT_FULL(0, m_pPlayer->edict(), m_usEgonFire, 0.0, g_vecZero, g_vecZero, 0.0, 0.0, 0, m_fireMode, 1, 0);
 
 		m_shakeTime = 0;
 
@@ -186,7 +179,7 @@ void CEgon::Attack()
 
 		if (pev->fuser1 <= UTIL_WeaponTimeBase())
 		{
-			PLAYBACK_EVENT_FULL(flags, m_pPlayer->edict(), m_usEgonFire, 0, g_vecZero, g_vecZero, 0.0, 0.0, 0, m_fireMode, 0, 0);
+			PLAYBACK_EVENT_FULL(0, m_pPlayer->edict(), m_usEgonFire, 0, g_vecZero, g_vecZero, 0.0, 0.0, 0, m_fireMode, 0, 0);
 			pev->fuser1 = 1000;
 		}
 

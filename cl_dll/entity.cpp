@@ -15,9 +15,8 @@
 #include "Exports.h"
 
 #include "particleman.h"
-extern IParticleMan* g_pParticleMan;
 
-void Game_AddObjects();
+extern IParticleMan* g_pParticleMan;
 
 extern Vector v_origin;
 
@@ -44,6 +43,7 @@ int DLLEXPORT HUD_AddEntity(int type, struct cl_entity_s* ent, const char* model
 	default:
 		break;
 	}
+
 	// each frame every entity passes this function, so the overview hooks it to filter the overview entities
 	// in spectator mode:
 	// each frame every entity passes this function, so the overview hooks
@@ -140,7 +140,6 @@ void DLLEXPORT HUD_ProcessPlayerState(struct entity_state_s* dst, const struct e
 	dst->team = src->team;
 	dst->colormap = src->colormap;
 
-
 	// Save off some data so other areas of the Client DLL can get to it
 	cl_entity_t* player = gEngfuncs.GetLocalPlayer(); // Get the local player's index
 	if (dst->number == player->index)
@@ -151,6 +150,16 @@ void DLLEXPORT HUD_ProcessPlayerState(struct entity_state_s* dst, const struct e
 		g_iUser1 = src->iuser1;
 		g_iUser2 = src->iuser2;
 		g_iUser3 = src->iuser3;
+
+		if ((player->curstate.effects & EF_DIMLIGHT) != 0)
+		{
+			gHUD.m_bFlashlight = true;
+			player->curstate.effects &= ~EF_DIMLIGHT;
+		}
+		else
+		{
+			gHUD.m_bFlashlight = false;
+		}
 	}
 }
 
@@ -306,12 +315,35 @@ void DLLEXPORT HUD_CreateEntities()
 	Beams();
 #endif
 
-	// Add in any game specific objects
-	Game_AddObjects();
-
 	GetClientVoiceMgr()->CreateEntities();
 }
 
+void CL_HandleMuzzleflash(int idx, const cl_entity_t* ent)
+{
+	dlight_t* dl = gEngfuncs.pEfxAPI->CL_AllocDlight(ent->index);
+	if (dl)
+	{
+		dl->origin = ent->attachment[idx];
+		dl->color = {128, 128, 0};
+		dl->radius = 175;
+		dl->decay = 512;
+		dl->die = gEngfuncs.GetClientTime() + 0.25f;
+	}
+
+	if (nlutils::GetViewModel() != ent)
+		return;
+
+	switch (nlutils::GetCurrentWeapon())
+	{
+	default:
+		particle_system.CreateGunParticle(GUNPARTICLES_GUNSMOKE, idx);
+		break;
+	case WEAPON_SHOTGUN:
+	case WEAPON_PYTHON:
+		particle_system.StartSmokeTrail(idx, gEngfuncs.GetClientTime() + 0.6f, gEngfuncs.GetClientTime() + 10.6);
+		break;
+	}
+}
 
 /*
 =========================
@@ -325,26 +357,26 @@ void DLLEXPORT HUD_StudioEvent(const struct mstudioevent_s* event, const struct 
 {
 	//	RecClStudioEvent(event, entity);
 
-	bool iMuzzleFlash = true;
+	int iMuzzleFlash = -1;
 
 
 	switch (event->event)
 	{
 	case 5001:
-		if (iMuzzleFlash)
-			gEngfuncs.pEfxAPI->R_MuzzleFlash((float*)&entity->attachment[0], atoi(event->options));
+		gEngfuncs.pEfxAPI->R_MuzzleFlash((float*)&entity->attachment[0], atoi(event->options));
+		iMuzzleFlash = 0;
 		break;
 	case 5011:
-		if (iMuzzleFlash)
-			gEngfuncs.pEfxAPI->R_MuzzleFlash((float*)&entity->attachment[1], atoi(event->options));
+		gEngfuncs.pEfxAPI->R_MuzzleFlash((float*)&entity->attachment[1], atoi(event->options));
+		iMuzzleFlash = 1;
 		break;
 	case 5021:
-		if (iMuzzleFlash)
-			gEngfuncs.pEfxAPI->R_MuzzleFlash((float*)&entity->attachment[2], atoi(event->options));
+		gEngfuncs.pEfxAPI->R_MuzzleFlash((float*)&entity->attachment[2], atoi(event->options));
+		iMuzzleFlash = 2;
 		break;
 	case 5031:
-		if (iMuzzleFlash)
-			gEngfuncs.pEfxAPI->R_MuzzleFlash((float*)&entity->attachment[3], atoi(event->options));
+		gEngfuncs.pEfxAPI->R_MuzzleFlash((float*)&entity->attachment[3], atoi(event->options));
+		iMuzzleFlash = 3;
 		break;
 	case 5002:
 		gEngfuncs.pEfxAPI->R_SparkEffect((float*)&entity->attachment[0], atoi(event->options), -100, 100);
@@ -355,6 +387,11 @@ void DLLEXPORT HUD_StudioEvent(const struct mstudioevent_s* event, const struct 
 		break;
 	default:
 		break;
+	}
+
+	if (iMuzzleFlash > -1)
+	{
+		CL_HandleMuzzleflash(iMuzzleFlash, entity);
 	}
 }
 
@@ -387,6 +424,9 @@ void DLLEXPORT HUD_TempEntUpdate(
 
 	if (g_pParticleMan)
 		g_pParticleMan->SetVariables(cl_gravity, vAngles);
+
+	// Update Particles
+	particle_system.Update();
 
 	// Nothing to simulate
 	if (!*ppTempEntActive)
@@ -530,14 +570,17 @@ void DLLEXPORT HUD_TempEntUpdate(
 				pTemp->entity.curstate.frame += frametime * pTemp->entity.curstate.framerate;
 				if (pTemp->entity.curstate.frame >= pTemp->frameMax)
 				{
-					pTemp->entity.curstate.frame = pTemp->entity.curstate.frame - (int)(pTemp->entity.curstate.frame);
-
 					if ((pTemp->flags & FTENT_SPRANIMATELOOP) == 0)
 					{
+						pTemp->entity.curstate.frame = pTemp->frameMax - 1; // pTemp->entity.curstate.frame - (int)(pTemp->entity.curstate.frame);
 						// this animating sprite isn't set to loop, so destroy it.
 						pTemp->die = client_time;
 						pTemp = pnext;
 						continue;
+					}
+					else
+					{
+						pTemp->entity.curstate.frame = pTemp->entity.curstate.frame - (int)(pTemp->entity.curstate.frame);
 					}
 				}
 			}

@@ -495,7 +495,7 @@ void IN_MouseMove(float frametime, usercmd_t* cmd)
 
 	if ((in_mlook.state & 1) != 0)
 	{
-		V_StopPitchDrift();
+		view::StopPitchDrift();
 	}
 
 	//jjb - this disbles normal mouse control if the user is trying to
@@ -972,7 +972,7 @@ void IN_JoyMove(float frametime, usercmd_t* cmd)
 					{
 						viewangles[PITCH] += (fAxisValue * joy_pitchsensitivity->value) * aspeed * cl_pitchspeed->value;
 					}
-					V_StopPitchDrift();
+					view::StopPitchDrift();
 				}
 				else
 				{
@@ -982,7 +982,7 @@ void IN_JoyMove(float frametime, usercmd_t* cmd)
 					// *** the bug always has the lookspring feature on
 					if (lookspring->value == 0.0)
 					{
-						V_StopPitchDrift();
+						view::StopPitchDrift();
 					}
 				}
 			}
@@ -1043,7 +1043,7 @@ void IN_JoyMove(float frametime, usercmd_t* cmd)
 					{
 						viewangles[PITCH] += (fAxisValue * joy_pitchsensitivity->value) * speed * 180.0;
 					}
-					V_StopPitchDrift();
+					view::StopPitchDrift();
 				}
 				else
 				{
@@ -1053,7 +1053,7 @@ void IN_JoyMove(float frametime, usercmd_t* cmd)
 					// *** the bug always has the lookspring feature on
 					if (lookspring->value == 0.0)
 					{
-						V_StopPitchDrift();
+						view::StopPitchDrift();
 					}
 				}
 			}

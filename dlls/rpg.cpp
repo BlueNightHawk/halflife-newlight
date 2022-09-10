@@ -52,6 +52,8 @@ void CLaserSpot::Spawn()
 	pev->renderfx = kRenderFxNoDissipation;
 	pev->renderamt = 255;
 
+	pev->flags |= FL_SKIPLOCALHOST;
+
 	SET_MODEL(ENT(pev), "sprites/laserdot.spr");
 	UTIL_SetOrigin(pev, pev->origin);
 };
@@ -303,6 +305,7 @@ void CRpg::Reload()
 	{
 		m_pSpot->Suspend(2.1);
 		m_flNextSecondaryAttack = UTIL_WeaponTimeBase() + 2.1;
+		m_pPlayer->pev->effects &= ~EF_LASERSPOT;
 	}
 #endif
 
@@ -406,6 +409,8 @@ void CRpg::Holster()
 
 	SendWeaponAnim(RPG_HOLSTER1);
 
+	m_pPlayer->pev->effects &= ~EF_LASERSPOT;
+
 #ifndef CLIENT_DLL
 	if (m_pSpot)
 	{
@@ -440,14 +445,7 @@ void CRpg::PrimaryAttack()
 		// firing RPG no longer turns on the designator. ALT fire is a toggle switch for the LTD.
 		// Ken signed up for this as a global change (sjb)
 
-		int flags;
-#if defined(CLIENT_WEAPONS)
-		flags = FEV_NOTHOST;
-#else
-		flags = 0;
-#endif
-
-		PLAYBACK_EVENT(flags, m_pPlayer->edict(), m_usRpg);
+		PLAYBACK_EVENT(0, m_pPlayer->edict(), m_usRpg);
 
 		m_iClip--;
 
@@ -530,6 +528,10 @@ void CRpg::UpdateSpot()
 			m_pSpot = CLaserSpot::CreateSpot();
 		}
 
+		m_pPlayer->pev->effects |= EF_LASERSPOT;
+
+		m_pSpot->pev->owner = m_pPlayer->edict();
+
 		UTIL_MakeVectors(m_pPlayer->pev->v_angle);
 		Vector vecSrc = m_pPlayer->GetGunPosition();
 		Vector vecAiming = gpGlobals->v_forward;
@@ -538,6 +540,10 @@ void CRpg::UpdateSpot()
 		UTIL_TraceLine(vecSrc, vecSrc + vecAiming * 8192, dont_ignore_monsters, ENT(m_pPlayer->pev), &tr);
 
 		UTIL_SetOrigin(m_pSpot->pev, tr.vecEndPos);
+	}
+	else
+	{
+		m_pPlayer->pev->effects &= ~EF_LASERSPOT;
 	}
 #endif
 }

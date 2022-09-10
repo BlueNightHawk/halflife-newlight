@@ -2585,69 +2585,6 @@ void CBasePlayer::PostThink()
 	UpdatePlayerSound();
 
 pt_end:
-#if defined(CLIENT_WEAPONS)
-	// Decay timers on weapons
-	// go through all of the weapons and make a list of the ones to pack
-	for (int i = 0; i < MAX_ITEM_TYPES; i++)
-	{
-		if (m_rgpPlayerItems[i])
-		{
-			CBasePlayerItem* pPlayerItem = m_rgpPlayerItems[i];
-
-			while (pPlayerItem)
-			{
-				CBasePlayerWeapon* gun = pPlayerItem->GetWeaponPtr();
-
-				if (gun && gun->UseDecrement())
-				{
-					gun->m_flNextPrimaryAttack = V_max(gun->m_flNextPrimaryAttack - gpGlobals->frametime, -1.1);
-					gun->m_flNextSecondaryAttack = V_max(gun->m_flNextSecondaryAttack - gpGlobals->frametime, -0.001);
-
-					if (gun->m_flTimeWeaponIdle != 1000)
-					{
-						gun->m_flTimeWeaponIdle = V_max(gun->m_flTimeWeaponIdle - gpGlobals->frametime, -0.001);
-					}
-
-					if (gun->pev->fuser1 != 1000)
-					{
-						gun->pev->fuser1 = V_max(gun->pev->fuser1 - gpGlobals->frametime, -0.001);
-					}
-
-					gun->DecrementTimers();
-
-					// Only decrement if not flagged as NO_DECREMENT
-					//					if ( gun->m_flPumpTime != 1000 )
-					//	{
-					//		gun->m_flPumpTime	= V_max( gun->m_flPumpTime - gpGlobals->frametime, -0.001 );
-					//	}
-				}
-
-				pPlayerItem = pPlayerItem->m_pNext;
-			}
-		}
-	}
-
-	m_flNextAttack -= gpGlobals->frametime;
-	if (m_flNextAttack < -0.001)
-		m_flNextAttack = -0.001;
-
-	if (m_flNextAmmoBurn != 1000)
-	{
-		m_flNextAmmoBurn -= gpGlobals->frametime;
-
-		if (m_flNextAmmoBurn < -0.001)
-			m_flNextAmmoBurn = -0.001;
-	}
-
-	if (m_flAmmoStartCharge != 1000)
-	{
-		m_flAmmoStartCharge -= gpGlobals->frametime;
-
-		if (m_flAmmoStartCharge < -0.001)
-			m_flAmmoStartCharge = -0.001;
-	}
-#endif
-
 	// Track button info so we can detect 'pressed' and 'released' buttons next frame
 	m_afButtonLast = pev->button;
 }
@@ -2982,13 +2919,6 @@ bool CBasePlayer::Restore(CRestore& restore)
 	RenewItems();
 
 	TabulateAmmo();
-
-#if defined(CLIENT_WEAPONS)
-	// HACK:	This variable is saved/restored in CBaseMonster as a time variable, but we're using it
-	//			as just a counter.  Ideally, this needs its own variable that's saved as a plain float.
-	//			Barring that, we clear it out here instead of using the incorrect restored time value.
-	m_flNextAttack = UTIL_WeaponTimeBase();
-#endif
 
 	m_bResetViewEntity = true;
 
@@ -3798,11 +3728,7 @@ Called every frame by the player PreThink
 */
 void CBasePlayer::ItemPreFrame()
 {
-#if defined(CLIENT_WEAPONS)
-	if (m_flNextAttack > 0)
-#else
 	if (gpGlobals->time < m_flNextAttack)
-#endif
 	{
 		return;
 	}
@@ -3827,11 +3753,7 @@ void CBasePlayer::ItemPostFrame()
 	if (m_pTank != NULL)
 		return;
 
-#if defined(CLIENT_WEAPONS)
-	if (m_flNextAttack > 0)
-#else
 	if (gpGlobals->time < m_flNextAttack)
-#endif
 	{
 		return;
 	}
@@ -4353,7 +4275,7 @@ Vector CBasePlayer::GetAutoaimVector(float flDelta)
 		if (m_vecAutoAim.x != m_lastx ||
 			m_vecAutoAim.y != m_lasty)
 		{
-			SET_CROSSHAIRANGLE(edict(), -m_vecAutoAim.x, m_vecAutoAim.y);
+			SetCrosshairAngle(-m_vecAutoAim.x, m_vecAutoAim.y);
 
 			m_lastx = m_vecAutoAim.x;
 			m_lasty = m_vecAutoAim.y;
@@ -4497,8 +4419,8 @@ void CBasePlayer::ResetAutoaim()
 	if (m_vecAutoAim.x != 0 || m_vecAutoAim.y != 0)
 	{
 		m_vecAutoAim = Vector(0, 0, 0);
-		SET_CROSSHAIRANGLE(edict(), 0, 0);
 	}
+	SetCrosshairAngle(0, 0);
 	m_fOnTarget = false;
 }
 
@@ -4734,6 +4656,14 @@ void CBasePlayer::SetPrefsFromUserinfo(char* infobuffer)
 	{
 		m_iAutoWepSwitch = 1;
 	}
+}
+
+void CBasePlayer::SetCrosshairAngle(const float x, const float y)
+{
+	MESSAGE_BEGIN(MSG_ONE, gmsgAutoAim, nullptr, pev);
+	WRITE_COORD(x);
+	WRITE_COORD(y);
+	MESSAGE_END();
 }
 
 //=========================================================

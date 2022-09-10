@@ -149,3 +149,13 @@ bool CHud::MsgFunc_Weapons(const char* pszName, int iSize, void* pbuf)
 
 	return true;
 }
+
+bool CHud::MsgFunc_AutoAim(const char* pszName, int iSize, void* pbuf)
+{
+	BEGIN_READ(pbuf, iSize);
+
+	m_flCrosshairOfs[0] = READ_COORD();
+	m_flCrosshairOfs[1] = READ_COORD();
+
+	return true;
+}

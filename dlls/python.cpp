@@ -102,7 +102,7 @@ void CPython::Holster()
 	}
 
 	m_pPlayer->m_flNextAttack = UTIL_WeaponTimeBase() + 1.0;
-	m_flTimeWeaponIdle = UTIL_SharedRandomFloat(m_pPlayer->random_seed, 10, 15);
+	m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + UTIL_SharedRandomFloat(m_pPlayer->random_seed, 10, 15);
 	SendWeaponAnim(PYTHON_HOLSTER);
 }
 
@@ -126,7 +126,7 @@ void CPython::SecondaryAttack()
 		m_pPlayer->m_iFOV = 40;
 	}
 
-	m_flNextSecondaryAttack = 0.5;
+	m_flNextSecondaryAttack = UTIL_WeaponTimeBase() + 0.5;
 }
 
 void CPython::PrimaryAttack()
@@ -169,21 +169,14 @@ void CPython::PrimaryAttack()
 	Vector vecDir;
 	vecDir = m_pPlayer->FireBulletsPlayer(1, vecSrc, vecAiming, VECTOR_CONE_1DEGREES, 8192, BULLET_PLAYER_357, 0, 0, m_pPlayer->pev, m_pPlayer->random_seed);
 
-	int flags;
-#if defined(CLIENT_WEAPONS)
-	flags = FEV_NOTHOST;
-#else
-	flags = 0;
-#endif
-
-	PLAYBACK_EVENT_FULL(flags, m_pPlayer->edict(), m_usFirePython, 0.0, g_vecZero, g_vecZero, vecDir.x, vecDir.y, 0, 0, 0, 0);
+	PLAYBACK_EVENT_FULL(0, m_pPlayer->edict(), m_usFirePython, 0.0, g_vecZero, g_vecZero, vecDir.x, vecDir.y, 0, 0, 0, 0);
 
 	if (0 == m_iClip && m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] <= 0)
 		// HEV suit - indicate out of ammo condition
 		m_pPlayer->SetSuitUpdate("!HEV_AMO0", false, 0);
 
-	m_flNextPrimaryAttack = 0.75;
-	m_flTimeWeaponIdle = UTIL_SharedRandomFloat(m_pPlayer->random_seed, 10, 15);
+	m_flNextPrimaryAttack = GetNextAttackDelay(0.75);
+	m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + UTIL_SharedRandomFloat(m_pPlayer->random_seed, 10, 15);
 }
 
 
@@ -222,22 +215,22 @@ void CPython::WeaponIdle()
 	if (flRand <= 0.5)
 	{
 		iAnim = PYTHON_IDLE1;
-		m_flTimeWeaponIdle = (70.0 / 30.0);
+		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + (70.0 / 30.0);
 	}
 	else if (flRand <= 0.7)
 	{
 		iAnim = PYTHON_IDLE2;
-		m_flTimeWeaponIdle = (60.0 / 30.0);
+		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + (60.0 / 30.0);
 	}
 	else if (flRand <= 0.9)
 	{
 		iAnim = PYTHON_IDLE3;
-		m_flTimeWeaponIdle = (88.0 / 30.0);
+		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + (88.0 / 30.0);
 	}
 	else
 	{
 		iAnim = PYTHON_FIDGET;
-		m_flTimeWeaponIdle = (170.0 / 30.0);
+		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + (170.0 / 30.0);
 	}
 
 	bool bUseScope = false;

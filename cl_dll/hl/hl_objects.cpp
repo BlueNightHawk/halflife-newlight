@@ -14,36 +14,27 @@
 ****/
 #include "../hud.h"
 #include "../cl_util.h"
-#include "../demo.h"
-
-#include "demo_api.h"
-#include "const.h"
-#include "entity_state.h"
-#include "cl_entity.h"
 
 #include "pm_defs.h"
 #include "event_api.h"
-#include "entity_types.h"
-#include "r_efx.h"
 
 extern BEAM* pBeam;
 extern BEAM* pBeam2;
 extern TEMPENTITY* pFlare; // Vit_amiN: egon's energy flare
-void HUD_GetLastOrg(float* org);
 
-void UpdateBeams()
+void UpdateBeams(ref_params_t *pparams)
 {
+	if (!pBeam && !pBeam2 && !pFlare)
+		return;
+
 	Vector forward, vecSrc, vecEnd, origin, angles, right, up;
 	Vector view_ofs;
 	pmtrace_t tr;
 	cl_entity_t* pthisplayer = gEngfuncs.GetLocalPlayer();
 	int idx = pthisplayer->index;
 
-	// Get our exact viewangles from engine
-	gEngfuncs.GetViewAngles((float*)angles);
-
-	// Determine our last predicted origin
-	HUD_GetLastOrg((float*)&origin);
+	origin = pparams->vieworg;
+	angles = pparams->viewangles;
 
 	AngleVectors(angles, forward, right, up);
 
@@ -99,15 +90,103 @@ void UpdateBeams()
 	}
 }
 
-/*
-=====================
-Game_AddObjects
+TEMPENTITY* pLaserSpot = nullptr;
 
-Add game specific, client-side objects here
-=====================
-*/
-void Game_AddObjects()
+void UpdateLaserSpot(ref_params_t* pparams)
 {
-	if (pBeam || pBeam2 || pFlare)
-		UpdateBeams();
+	Vector forward, vecSrc, vecEnd, origin, angles, right, up;
+	Vector view_ofs;
+	pmtrace_t tr;
+	cl_entity_t* pthisplayer = gEngfuncs.GetLocalPlayer();
+	int idx = pthisplayer->index;
+	int model = gEngfuncs.pEventAPI->EV_FindModelIndex("sprites/laserdot.spr");
+
+	if ((pthisplayer->curstate.effects & EF_LASERSPOT) == 0)
+	{
+		if (pLaserSpot)
+		{
+			pLaserSpot->die = 0.0f;
+			pLaserSpot = nullptr;
+		}
+		return;
+	}
+
+	origin = pparams->vieworg;
+	angles = pparams->viewangles;
+
+	AngleVectors(angles, forward, right, up);
+
+	VectorCopy(origin, vecSrc);
+
+	VectorMA(vecSrc, 8192, forward, vecEnd);
+
+	gEngfuncs.pEventAPI->EV_SetUpPlayerPrediction(0, 1);
+
+	// Store off the old count
+	gEngfuncs.pEventAPI->EV_PushPMStates();
+
+	// Now add in all of the players.
+	gEngfuncs.pEventAPI->EV_SetSolidPlayers(idx - 1);
+
+	gEngfuncs.pEventAPI->EV_SetTraceHull(2);
+	gEngfuncs.pEventAPI->EV_PlayerTrace(vecSrc, vecEnd, PM_NORMAL, -1, &tr);
+
+	gEngfuncs.pEventAPI->EV_PopPMStates();
+
+	if (!pLaserSpot)
+	{
+		pLaserSpot = gEngfuncs.pEfxAPI->R_TempSprite(tr.endpos, Vector(0, 0, 0), 1.0f, model, kRenderGlow, kRenderFxNoDissipation, 1.0f, 9999, FTENT_NONE);
+	}
+	else
+	{
+		pLaserSpot->entity.origin = tr.endpos;
+		pLaserSpot->die = gEngfuncs.GetClientTime() + 999.0f;
+	}
+}
+
+void UpdateFlashlight(ref_params_t* pparams)
+{
+	dlight_t* dl;
+	Vector forward, vecSrc, vecEnd, origin, angles, right, up;
+	Vector view_ofs;
+	pmtrace_t tr;
+	cl_entity_t* pthisplayer = gEngfuncs.GetLocalPlayer();
+	int idx = pthisplayer->index;
+
+	if (!gHUD.m_bFlashlight)
+	{
+		return;
+	}
+
+	origin = pparams->vieworg;
+	angles = pparams->viewangles;
+
+	AngleVectors(angles, forward, right, up);
+
+	VectorCopy(origin, vecSrc);
+
+	VectorMA(vecSrc, 8192, forward, vecEnd);
+
+	gEngfuncs.pEventAPI->EV_SetUpPlayerPrediction(0, 1);
+
+	// Store off the old count
+	gEngfuncs.pEventAPI->EV_PushPMStates();
+
+	// Now add in all of the players.
+	gEngfuncs.pEventAPI->EV_SetSolidPlayers(idx - 1);
+
+	gEngfuncs.pEventAPI->EV_SetTraceHull(2);
+	gEngfuncs.pEventAPI->EV_PlayerTrace(vecSrc, vecEnd, PM_STUDIO_BOX, -1, &tr);
+
+	gEngfuncs.pEventAPI->EV_PopPMStates();
+
+	dl = gEngfuncs.pEfxAPI->CL_AllocDlight(-999);
+	if (dl)
+	{
+		dl->origin = tr.endpos;
+		dl->radius = 100;
+		dl->decay = 512;
+		dl->die = gEngfuncs.GetClientTime() + 0.1f;
+		dl->color = {255, 255, 255};
+	}
 }

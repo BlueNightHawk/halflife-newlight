@@ -29,6 +29,7 @@
 #include "common_types.h"
 #include "cl_dll.h"
 #include "ammo.h"
+#include "nlutils.h"
 
 #define DHN_DRAWZERO 1
 #define DHN_2DIGITS 2
@@ -606,6 +607,12 @@ public:
 	void AddHudElem(CHudBase* p);
 
 	float GetSensitivity();
+
+	// Autoaim Interpolation	
+	bool MsgFunc_AutoAim(const char* pszName, int iSize, void* pbuf);
+	float m_flCrosshairOfs[2];
+
+	bool m_bFlashlight;
 };
 
 extern CHud gHUD;

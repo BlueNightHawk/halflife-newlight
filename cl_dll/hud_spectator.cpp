@@ -26,6 +26,8 @@
 #include "studio_util.h"
 #include "screenfade.h"
 
+#include "view.h"
+
 
 #pragma warning(disable : 4244)
 
@@ -33,16 +35,7 @@ extern bool iJumpSpectator;
 extern float vJumpOrigin[3];
 extern float vJumpAngles[3];
 
-
-extern void V_GetInEyePos(int entity, float* origin, float* angles);
-extern void V_ResetChaseCam();
-extern void V_GetChasePos(int target, float* cl_angles, float* origin, float* angles);
 extern float* GetClientColor(int clientIndex);
-
-extern Vector v_origin;	   // last view origin
-extern Vector v_angles;	   // last view angle
-extern Vector v_cl_angles; // last client/mouse angle
-extern Vector v_sim_org;   // last sim origin
 
 #if 0 
 const char *GetSpectatorLabel ( int iMode )
@@ -705,7 +698,7 @@ void CHudSpectator::DirectorMessage(int iSize, void* pbuf)
 		if (0 != m_autoDirector->value)
 		{
 			if ((g_iUser2 != m_lastPrimaryObject) || (g_iUser3 != m_lastSecondaryObject))
-				V_ResetChaseCam();
+				view::ResetChaseCam();
 
 			g_iUser2 = m_lastPrimaryObject;
 			g_iUser3 = m_lastSecondaryObject;
@@ -1179,7 +1172,7 @@ void CHudSpectator::SetModes(int iNewMainMode, int iNewInsetMode)
 			g_iUser1 = OBS_ROAMING;
 			if (0 != g_iUser2)
 			{
-				V_GetChasePos(g_iUser2, v_cl_angles, vJumpOrigin, vJumpAngles);
+				view::GetChasePos(g_iUser2, v_cl_angles, vJumpOrigin, vJumpAngles);
 				gEngfuncs.SetViewAngles(vJumpAngles);
 				iJumpSpectator = true;
 			}
@@ -1675,11 +1668,11 @@ void CHudSpectator::DrawOverviewEntities()
 
 	if (m_pip->value == INSET_IN_EYE || g_iUser1 == OBS_IN_EYE)
 	{
-		V_GetInEyePos(g_iUser2, origin, angles);
+		view::GetInEyePos(g_iUser2, origin, angles);
 	}
 	else if (m_pip->value == INSET_CHASE_FREE || g_iUser1 == OBS_CHASE_FREE)
 	{
-		V_GetChasePos(g_iUser2, v_cl_angles, origin, angles);
+		view::GetChasePos(g_iUser2, v_cl_angles, origin, angles);
 	}
 	else if (g_iUser1 == OBS_ROAMING)
 	{
@@ -1687,7 +1680,7 @@ void CHudSpectator::DrawOverviewEntities()
 		VectorCopy(v_cl_angles, angles);
 	}
 	else
-		V_GetChasePos(g_iUser2, NULL, origin, angles);
+		view::GetChasePos(g_iUser2, NULL, origin, angles);
 
 
 	// draw camera sprite

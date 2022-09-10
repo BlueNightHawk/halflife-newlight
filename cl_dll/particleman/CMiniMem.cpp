@@ -13,8 +13,6 @@
 *
 ****/
 
-#undef clamp
-
 #include <algorithm>
 
 #include "hud.h"
@@ -86,10 +84,10 @@ void CMiniMem::ProcessAll()
 		if (0 != effect->m_flDieTime && time >= effect->m_flDieTime)
 		{
 			effect->Die();
-			delete effect;
+//			delete effect;
 
 			//Don't do this! operator delete removes the effect from the list.
-			//_particles.erase(_particles.begin() + i);
+			_particles.erase(_particles.begin() + i);
 			continue;
 		}
 
