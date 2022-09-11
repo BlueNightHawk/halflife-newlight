@@ -11,6 +11,7 @@
 
 #define STUDIO_RENDER 1
 #define STUDIO_EVENTS 2
+#define STUDIO_PLAYERLEG 4
 
 #define MAX_EDICTS 900
 

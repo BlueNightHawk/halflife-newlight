@@ -361,7 +361,10 @@ public:
 	void Kick(CBaseEntity *pHurt = nullptr);
 
 	EHANDLE m_pHeldItem;
+	bool m_bHoldingItem;
 	void UpdateHeldItem();
+
+	float m_flKickTime = 0.0f;
 };
 
 inline void CBasePlayer::SetWeaponBit(int id)

@@ -53,6 +53,8 @@ public:
 	void EXPORT DetonateUse(CBaseEntity* pActivator, CBaseEntity* pCaller, USE_TYPE useType, float value);
 	void EXPORT TumbleThink();
 
+	int ObjectCaps() override { return CBaseMonster::ObjectCaps() | FCAP_HOLDABLE; }
+
 	virtual void BounceSound();
 	int BloodColor() override { return DONT_BLEED; }
 	void Killed(entvars_t* pevAttacker, int iGib) override;
@@ -265,6 +267,8 @@ public:
 	CBasePlayer* m_pPlayer;
 	CBasePlayerItem* m_pNext;
 	int m_iId; // WEAPON_???
+
+	int ObjectCaps() override { return CBaseAnimating::ObjectCaps() | FCAP_HOLDABLE; }
 
 	virtual int iItemSlot() { return 0; } // return 0 to MAX_ITEMS_SLOTS, used in hud
 

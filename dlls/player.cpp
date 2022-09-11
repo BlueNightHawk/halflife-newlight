@@ -42,6 +42,8 @@
 #include "UserMessages.h"
 #include "client.h"
 
+#include "doors.h"
+
 // #define DUCKFIX
 
 extern void CopyToBodyQue(entvars_t* pev);
@@ -116,6 +118,9 @@ TYPEDESCRIPTION CBasePlayer::m_playerSaveData[] =
 		DEFINE_FIELD(CBasePlayer, m_flSndRange, FIELD_FLOAT),
 
 		DEFINE_FIELD(CBasePlayer, m_pHeldItem, FIELD_EHANDLE),
+		DEFINE_FIELD(CBasePlayer, m_bHoldingItem, FIELD_BOOLEAN),
+
+		DEFINE_FIELD(CBasePlayer, m_flNextAttack, FIELD_TIME),
 
 		//DEFINE_FIELD( CBasePlayer, m_fDeadTime, FIELD_FLOAT ), // only used in multiplayer games
 		//DEFINE_FIELD( CBasePlayer, m_fGameHUDInitialized, FIELD_INTEGER ), // only used in multiplayer games
@@ -1455,6 +1460,23 @@ void CBasePlayer::PlayerUse()
 
 		if ((pObject->ObjectCaps() & (FCAP_IMPULSE_USE | FCAP_CONTINUOUS_USE | FCAP_ONOFF_USE | FCAP_HOLDABLE)) != 0)
 		{
+			if (pObject->pev->rendermode != kRenderNormal || (pObject->pev->effects & EF_NODRAW) != 0)
+				continue;
+
+			TraceResult tr;
+			UTIL_TraceLine(GetGunPosition(), pObject->Center(), dont_ignore_monsters, ENT(pev), &tr);
+
+			if (pObject->edict() != tr.pHit)
+			{
+				CBaseEntity* pObj2 = nullptr;
+				while ((pObj2 = UTIL_FindEntityInSphere(pObj2, tr.vecEndPos, 2)) != NULL)
+				{
+					if (pObj2 == pObject)
+						break;
+				}
+				if (pObj2 != pObject)
+					continue;
+			}
 			// !!!PERFORMANCE- should this check be done on a per case basis AFTER we've determined that
 			// this object is actually usable? This dot is being done for every object within PLAYER_SEARCH_RADIUS
 			// when player hits the use key. How many objects can be in that area, anyway? (sjb)
@@ -1487,6 +1509,11 @@ void CBasePlayer::PlayerUse()
 
 		if ((m_afButtonPressed & IN_USE) != 0 && (caps & FCAP_HOLDABLE) != 0)
 		{
+			DispatchTouch(pObject->edict(), edict());
+
+			if ((pObject->pev->flags & FL_KILLME) != 0)
+				return;
+			
 			m_pHeldItem = pObject;
 			m_flNextAttack = UTIL_WeaponTimeBase() + 0.2f;
 			if (m_pActiveItem)
@@ -1519,8 +1546,16 @@ void CBasePlayer::PlayerUse()
 void CBasePlayer::UpdateHeldItem()
 {
 	if (!m_pHeldItem)
+	{
+		if (m_bHoldingItem)
+		{
+			if (m_pActiveItem)
+				m_pActiveItem->Deploy();
+			m_flNextAttack = UTIL_WeaponTimeBase() + 0.2f;
+		}
+		m_bHoldingItem = false;
 		return;
-
+	}
 	UTIL_MakeVectors(pev->v_angle);
 
 	if ((pev->button & IN_USE) != 0 && m_flNextAttack < UTIL_WeaponTimeBase())
@@ -1531,6 +1566,8 @@ void CBasePlayer::UpdateHeldItem()
 		m_pHeldItem->pev->velocity = pev->velocity;
 		m_pHeldItem = nullptr;
 		m_flNextAttack = UTIL_WeaponTimeBase() + 0.2f;
+
+		m_bHoldingItem = false;
 		return;
 	}
 	if ((pev->button & IN_ATTACK) != 0 && m_flNextAttack < UTIL_WeaponTimeBase())
@@ -1541,18 +1578,28 @@ void CBasePlayer::UpdateHeldItem()
 		m_pHeldItem->pev->velocity = pev->velocity + gpGlobals->v_forward * 100;
 		m_pHeldItem = nullptr;
 		m_flNextAttack = UTIL_WeaponTimeBase() + 0.2f;
+
+		m_bHoldingItem = false;
 		return;
 	}
 	if ((m_EFlags & EFLAG_PLAYERKICK) != 0)
 	{
+		float flNextAttack = m_flNextAttack;
 		if (m_pActiveItem)
 			m_pActiveItem->Deploy();
 
+		m_flNextAttack = flNextAttack;
+
+		m_pHeldItem->pev->velocity = pev->velocity + gpGlobals->v_forward * 500;
 		m_pHeldItem = nullptr;
+
+		m_bHoldingItem = false;
 		return;
 	}
 
-	m_pHeldItem->pev->velocity = ((pev->origin - m_pHeldItem->pev->origin) + gpGlobals->v_forward * 60) * 30;
+	m_bHoldingItem = true;
+
+	m_pHeldItem->pev->velocity = ((GetGunPosition() - m_pHeldItem->Center()) + gpGlobals->v_forward * 60) * 30;
 }
 
 void CBasePlayer::Jump()
@@ -2987,6 +3034,9 @@ bool CBasePlayer::Restore(CRestore& restore)
 
 void CBasePlayer::SelectNextItem(int iItem)
 {
+	if (m_pHeldItem)
+		return;
+
 	CBasePlayerItem* pItem;
 
 	pItem = m_rgpPlayerItems[iItem];
@@ -3033,7 +3083,7 @@ void CBasePlayer::SelectNextItem(int iItem)
 
 void CBasePlayer::SelectItem(const char* pstr)
 {
-	if (!pstr)
+	if (!pstr || m_pHeldItem)
 		return;
 
 	CBasePlayerItem* pItem = NULL;
@@ -3812,15 +3862,17 @@ void CBasePlayer::ItemPostFrame()
 	if (m_pTank != NULL)
 		return;
 
-	if (m_pHeldItem)
-		return;
-
 	if (gpGlobals->time < m_flNextAttack)
 	{
 		return;
 	}
 
 	ImpulseCommands();
+
+
+	if (m_pHeldItem)
+		return;
+
 
 	if (!m_pActiveItem)
 		return;
@@ -4196,7 +4248,7 @@ void CBasePlayer::UpdateClientData()
 	{
 		g_engfuncs.pfnSetClientMaxspeed(edict(), 170);
 	}
-	if (m_flNextAttack < UTIL_WeaponTimeBase() && (m_EFlags & EFLAG_PLAYERKICK) != 0)
+	if (m_flKickTime < UTIL_WeaponTimeBase() && (m_EFlags & EFLAG_PLAYERKICK) != 0)
 	{
 		m_EFlags &= ~EFLAG_PLAYERKICK;
 		g_engfuncs.pfnSetClientMaxspeed(edict(), CVAR_GET_FLOAT("sv_maxspeed"));
@@ -4672,7 +4724,7 @@ bool CBasePlayer::HasNamedPlayerItem(const char* pszItemName)
 //=========================================================
 bool CBasePlayer::SwitchWeapon(CBasePlayerItem* pWeapon)
 {
-	if (pWeapon && !pWeapon->CanDeploy())
+	if ((pWeapon && !pWeapon->CanDeploy()) || m_pHeldItem)
 	{
 		return false;
 	}
@@ -4741,7 +4793,7 @@ void CBasePlayer::SetCrosshairAngle(const float x, const float y)
 
 void CBasePlayer::Kick(CBaseEntity *pHurt)
 {
-	if (m_flNextAttack > UTIL_WeaponTimeBase() || (m_EFlags & EFLAG_PLAYERKICK) != 0)
+	if (m_flKickTime > UTIL_WeaponTimeBase() || (m_EFlags & EFLAG_PLAYERKICK) != 0)
 		return;
 
 	TraceResult tr;
@@ -4761,21 +4813,43 @@ void CBasePlayer::Kick(CBaseEntity *pHurt)
 	{
 		UTIL_TraceHull(vecStart, vecEnd, dont_ignore_monsters, head_hull, ENT(pev), &tr);
 
-
 		if (tr.pHit)
 		{
 			pHurt = CBaseEntity::Instance(tr.pHit);
 		}
-		if (!pHurt || pHurt->pev->movetype == MOVETYPE_NONE)
+		if (!tr.pHit || ENTINDEX(tr.pHit) == 0)
 		{
-			CBaseEntity* pEnt;
-			while (pEnt = UTIL_FindEntityInSphere(pHurt, tr.vecEndPos, 6))
+			UTIL_TraceLine(vecStart, vecEnd, dont_ignore_monsters, ENT(pev), &tr);
+
+			Vector vecLOS;
+			float flDot, flMaxDot = 0;
+			CBaseEntity* pObject = nullptr, *pClosest = nullptr;
+			while ((pObject = UTIL_FindEntityInSphere(pObject, tr.vecEndPos, 2)) != NULL)
 			{
-				if (pEnt->pev->movetype != MOVETYPE_NONE || (pEnt->ObjectCaps() & FCAP_HOLDABLE) != 0)
-				{
-					pHurt = pEnt;
-					break;
+				if ((pObject->pev->effects & EF_NODRAW) != 0)
+					continue;
+					
+				// !!!PERFORMANCE- should this check be done on a per case basis AFTER we've determined that
+				// this object is actually usable? This dot is being done for every object within PLAYER_SEARCH_RADIUS
+				// when player hits the use key. How many objects can be in that area, anyway? (sjb)
+				vecLOS = (VecBModelOrigin(pObject->pev) - (pev->origin + pev->view_ofs));
+
+				// This essentially moves the origin of the target to the corner nearest the player to test to see
+				// if it's "hull" is in the view cone
+				vecLOS = UTIL_ClampVectorToBox(vecLOS, pObject->pev->size * 0.5);
+
+				flDot = DotProduct(vecLOS, gpGlobals->v_forward);
+				if (flDot > flMaxDot)
+				{ // only if the item is in front of the user
+					pClosest = pObject;
+					flMaxDot = flDot;
+					//				ALERT( at_console, "%s : %f\n", STRING( pObject->pev->classname ), flDot );
 				}
+				//			ALERT( at_console, "%s : %f\n", STRING( pObject->pev->classname ), flDot );
+			}
+			if (pClosest)
+			{
+				pHurt = pClosest;
 			}
 		}
 	}
@@ -4784,7 +4858,8 @@ void CBasePlayer::Kick(CBaseEntity *pHurt)
 	{
 		// SOUND HERE!
 		pHurt->pev->punchangle.x = 15;
-		pHurt->pev->velocity = pHurt->pev->velocity + gpGlobals->v_forward * 100 + gpGlobals->v_up * 50;
+		if (pHurt->pev->movetype != MOVETYPE_PUSH)
+			pHurt->pev->velocity = pHurt->pev->velocity + gpGlobals->v_forward * 100 + gpGlobals->v_up * 50;
 
 		ClearMultiDamage();
 
@@ -4809,11 +4884,18 @@ void CBasePlayer::Kick(CBaseEntity *pHurt)
 
 		pev->velocity = -gpGlobals->v_forward * 120;
 		g_engfuncs.pfnSetClientMaxspeed(edict(), 170);
+
+//		if (FClassnameIs(pHurt->pev, "func_door"))
+		pHurt->m_EFlags |= EFLAG_PLAYERKICK;
+		{
+			DispatchTouch(pHurt->edict(), edict());
+		}
+		pHurt->m_EFlags &= ~EFLAG_PLAYERKICK;
 	}
 
 
 	m_EFlags |= EFLAG_PLAYERKICK;	
-	m_flNextAttack = UTIL_WeaponTimeBase() + 0.5;
+	m_flNextAttack = m_flKickTime = UTIL_WeaponTimeBase() + 0.5;
 }
 
 //=========================================================

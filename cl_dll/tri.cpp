@@ -52,8 +52,8 @@ Non-transparent triangles-- add them here
 void DLLEXPORT HUD_DrawNormalTriangles()
 {
 	//	RecClDrawNormalTriangles();
-	g_StudioRenderer.StudioDrawPlayerKick();
-
+	if (!g_StudioRenderer.StudioDrawPlayerKick())
+		g_StudioRenderer.StudioDrawPlayerBody();
 
 	gHUD.m_Spectator.DrawOverview();
 }

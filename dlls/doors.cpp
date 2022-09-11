@@ -528,6 +528,11 @@ void CBaseDoor::DoorTouch(CBaseEntity* pOther)
 	if (!FClassnameIs(pevToucher, "player"))
 		return;
 
+	float speed = pev->speed;
+
+	if ((m_EFlags & EFLAG_PLAYERKICK) != 0)
+		pev->speed = 255;
+
 	// If door has master, and it's not ready to trigger,
 	// play 'locked' sound
 
@@ -541,6 +546,7 @@ void CBaseDoor::DoorTouch(CBaseEntity* pOther)
 	{
 		// play locked sound
 		PlayLockSounds(pev, &m_ls, true, false);
+		pev->speed = speed;
 		return;
 	}
 
@@ -548,6 +554,8 @@ void CBaseDoor::DoorTouch(CBaseEntity* pOther)
 
 	if (DoorActivate())
 		SetTouch(NULL); // Temporarily disable the touch function, until movement is finished.
+
+	pev->speed = speed;
 }
 
 

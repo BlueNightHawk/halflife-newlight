@@ -43,6 +43,8 @@ class CTripmineGrenade : public CGrenade
 	void EXPORT DelayDeathThink();
 	void Killed(entvars_t* pevAttacker, int iGib) override;
 
+	int ObjectCaps() override { return CBaseMonster::ObjectCaps(); }
+
 	void MakeBeam();
 	void KillBeam();
 

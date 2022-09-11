@@ -59,6 +59,8 @@ R_StudioDrawPlayer
 */
 int R_StudioDrawPlayer(int flags, entity_state_t* pplayer)
 {
+	g_StudioRenderer.m_pCurrentEntity = IEngineStudio.GetCurrentEntity();
+	g_StudioRenderer.m_pRenderModel = IEngineStudio.SetupPlayerModel(pplayer->number - 1);
 	return static_cast<int>(g_StudioRenderer.StudioDrawPlayer(flags, pplayer));
 }
 

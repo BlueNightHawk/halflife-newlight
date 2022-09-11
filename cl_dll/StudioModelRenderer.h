@@ -181,5 +181,7 @@ public:
 	float (*m_plighttransform)[MAXSTUDIOBONES][3][4];
 
 public:
-	void StudioDrawPlayerKick();
+	bool StudioDrawPlayerKick();
+	bool StudioDrawPlayerBody();
+	bool StudioForceCalcAttachment(cl_entity_s* ent);
 };

@@ -1117,20 +1117,20 @@ StudioDrawPlayerKick
 
 ====================
 */
-void CStudioModelRenderer::StudioDrawPlayerKick()
+bool CStudioModelRenderer::StudioDrawPlayerKick()
 {
 	cl_entity_t* view = nlutils::GetViewModel();
 	static bool bFirstdraw = true;
 	cl_entity_t *player = gEngfuncs.GetLocalPlayer();
-	if (!view || !player)
-		return;
+	if (!view || !player || nlutils::IsThirdPerson())
+		return false;
 
 	static cl_entity_t kickmodel = *player;
 
 	if ((player->curstate.eflags & EFLAG_PLAYERKICK) == 0)
 	{
 		bFirstdraw = true;
-		return;
+		return false;
 	}
 
 	if (bFirstdraw)
@@ -1153,8 +1153,62 @@ void CStudioModelRenderer::StudioDrawPlayerKick()
 
 	m_pCurrentEntity = &kickmodel;
 	glDepthRange(0.0, 0.4);
-	StudioDrawModel(STUDIO_RENDER);
+	bool result = StudioDrawModel(STUDIO_RENDER);
 	glDepthRange(0.0, 1.0);
+	return result;
+}
+
+/*
+====================
+StudioDrawPlayerKick
+
+====================
+*/
+bool CStudioModelRenderer::StudioDrawPlayerBody()
+{
+	cl_entity_t* player = gEngfuncs.GetLocalPlayer();
+	cl_entity_t playerbody = *player;
+	entity_state_t* plinfo;
+
+	Vector forward;
+	Vector angles = nlutils::ViewParams.cl_viewangles;
+
+	if (!player || nlutils::IsThirdPerson())
+		return false;
+
+	if ((player->curstate.eflags & EFLAG_PLAYERKICK) != 0)
+	{
+		return false;
+	}
+
+	angles[0] = 0;
+	AngleVectors(angles, forward, nullptr, nullptr);
+
+	playerbody.baseline.origin = playerbody.origin;
+	playerbody.origin = playerbody.origin - forward * 18;
+	playerbody.angles[0] = 0;
+
+	plinfo = IEngineStudio.GetPlayerState(player->index - 1);
+
+	m_pCurrentEntity = &playerbody;
+	m_pRenderModel = IEngineStudio.Mod_ForName("models/player_legs.mdl", 1);
+
+	glDepthRange(0.0, 0.9);
+	bool result = StudioDrawPlayer(STUDIO_RENDER | STUDIO_PLAYERLEG, plinfo);
+	glDepthRange(0.0, 1.0);
+	return result;
+}
+
+/*
+====================
+StudioForceCalcAttachment
+
+====================
+*/
+bool CStudioModelRenderer::StudioForceCalcAttachment(cl_entity_s *ent)
+{
+	m_pCurrentEntity = ent;
+	return StudioDrawModel(0);	
 }
 
 /*
@@ -1262,7 +1316,6 @@ bool CStudioModelRenderer::StudioDrawModel(int flags)
 		m_nTopColor = m_pCurrentEntity->curstate.colormap & 0xFF;
 		m_nBottomColor = (m_pCurrentEntity->curstate.colormap & 0xFF00) >> 8;
 
-
 		IEngineStudio.StudioSetRemapColors(m_nTopColor, m_nBottomColor);
 
 		StudioRenderModel();
@@ -1297,9 +1350,17 @@ void CStudioModelRenderer::StudioEstimateGait(entity_state_t* pplayer)
 	// VectorAdd( pplayer->velocity, pplayer->prediction_error, est_velocity );
 	if (m_fGaitEstimation)
 	{
-		VectorSubtract(m_pCurrentEntity->origin, m_pPlayerInfo->prevgaitorigin, est_velocity);
-		VectorCopy(m_pCurrentEntity->origin, m_pPlayerInfo->prevgaitorigin);
-		m_flGaitMovement = Length(est_velocity);
+		if (nlutils::IsLocal(m_pCurrentEntity->index) && !nlutils::IsThirdPerson())
+		{
+			VectorCopy(nlutils::ViewParams.simvel, est_velocity);
+			m_flGaitMovement = Length(est_velocity) * dt;
+		}
+		else
+		{
+			VectorSubtract(m_pCurrentEntity->origin, m_pPlayerInfo->prevgaitorigin, est_velocity);
+			VectorCopy(m_pCurrentEntity->origin, m_pPlayerInfo->prevgaitorigin);
+			m_flGaitMovement = Length(est_velocity);
+		}
 		if (dt <= 0 || m_flGaitMovement / dt < 5)
 		{
 			m_flGaitMovement = 0;
@@ -1454,7 +1515,6 @@ bool CStudioModelRenderer::StudioDrawPlayer(int flags, entity_state_t* pplayer)
 	alight_t lighting;
 	Vector dir;
 
-	m_pCurrentEntity = IEngineStudio.GetCurrentEntity();
 	IEngineStudio.GetTimes(&m_nFrameCount, &m_clTime, &m_clOldTime);
 	IEngineStudio.GetViewInfo(m_vRenderOrigin, m_vUp, m_vRight, m_vNormal);
 	IEngineStudio.GetAliasScale(&m_fSoftwareXScale, &m_fSoftwareYScale);
@@ -1463,10 +1523,6 @@ bool CStudioModelRenderer::StudioDrawPlayer(int flags, entity_state_t* pplayer)
 
 	if (m_nPlayerIndex < 0 || m_nPlayerIndex >= gEngfuncs.GetMaxClients())
 		return false;
-
-
-	m_pRenderModel = IEngineStudio.SetupPlayerModel(m_nPlayerIndex);
-
 
 	if (m_pRenderModel == NULL)
 		return false;
@@ -1542,6 +1598,11 @@ bool CStudioModelRenderer::StudioDrawPlayer(int flags, entity_state_t* pplayer)
 
 	if ((flags & STUDIO_RENDER) != 0)
 	{
+		if ((flags & STUDIO_PLAYERLEG) != 0)
+		{
+			m_pCurrentEntity->origin = m_pCurrentEntity->baseline.origin;
+		}
+
 		if (0 != m_pCvarHiModels->value && m_pRenderModel != m_pCurrentEntity->model)
 		{
 			// show highest resolution multiplayer model
@@ -1583,7 +1644,7 @@ bool CStudioModelRenderer::StudioDrawPlayer(int flags, entity_state_t* pplayer)
 		StudioRenderModel();
 		m_pPlayerInfo = NULL;
 
-		if (0 != pplayer->weaponmodel)
+		if (0 != pplayer->weaponmodel && (flags & STUDIO_PLAYERLEG) == 0)
 		{
 			cl_entity_t saveent = *m_pCurrentEntity;
 

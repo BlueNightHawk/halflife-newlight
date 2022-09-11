@@ -418,7 +418,7 @@ CGrenade* CGrenade::ShootTimed(entvars_t* pevOwner, Vector vecStart, Vector vecV
 	}
 
 	pGrenade->pev->sequence = RANDOM_LONG(3, 6);
-	pGrenade->pev->framerate = 1.0;
+	pGrenade->pev->framerate = 0.0;
 
 	// Tumble through the air
 	// pGrenade->pev->avelocity.x = -400;

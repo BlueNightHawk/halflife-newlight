@@ -36,6 +36,8 @@ namespace nlutils
 	{
 		return iCurrentWeapon;
 	}
+
+	bool IsLocal(int idx);
 #else
 	// Server Side Specific
 #endif

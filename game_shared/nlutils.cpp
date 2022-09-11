@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <cmath>
 #include "nlutils.h"
+#include "event_api.h"
+#include "r_efx.h"
 
 // Utilities
 Vector nlutils::VectorInvertPitch(const Vector in)
@@ -118,6 +120,11 @@ void nlutils::CalcRefDef(ref_params_t* pparams)
 bool nlutils::IsThirdPerson()
 {
 	return (CL_IsThirdPerson() > 0);
+}
+
+bool nlutils::IsLocal(int idx)
+{
+	return gEngfuncs.GetLocalPlayer()->index == idx;
 }
 
 cl_entity_s* nlutils::GetViewModel()
